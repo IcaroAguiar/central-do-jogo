@@ -1,0 +1,6 @@
+# Private or machine-local project documents
+/docs/private/
+/docs/internal/
+/.private/
+*.private.md
+*.local.md
