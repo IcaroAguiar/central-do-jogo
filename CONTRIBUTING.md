@@ -4,7 +4,7 @@ Thanks for considering a contribution to Central do Jogo.
 
 ## Before you start
 
-- Product implementation (domain, adapters, match journeys) is blocked until Phase 0 source feasibility is accepted. See `docs/adr/0000-toolchain-versions.md` and `AGENTS.md`.
+- Product domain work must stay inside the Phase 0 allowlist (`docs/adr/0001-source-feasibility-gate.md`, `AGENTS.md`).
 - Prefer public structured data. Isolated HTML adapters need review, manifests, redacted fixtures, and deterministic tests.
 - Do not commit secrets, tokens, cookies, credentials, private data, or unlicensed third-party assets.
 
@@ -25,6 +25,8 @@ go test -race ./...
 go vet ./...
 cd web && pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 ```
+
+Frontend lint/format uses Biome (`web/biome.json`). Apply fixes locally with `pnpm format`.
 
 4. Optional full stack: `docker compose -f deploy/compose.yaml up --build`
 

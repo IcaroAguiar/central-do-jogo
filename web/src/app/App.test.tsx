@@ -5,8 +5,6 @@ import { App } from "./App";
 describe("App", () => {
   it("renders the product shell", () => {
     render(<App />);
-    expect(
-      screen.getByRole("heading", { name: "Central do Jogo" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Central do Jogo" })).toBeInTheDocument();
   });
 });
