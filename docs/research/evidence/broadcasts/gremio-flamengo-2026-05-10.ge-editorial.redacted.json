@@ -16,5 +16,6 @@
     "Sportv"
   ],
   "broadcast_excerpt": "Premiere transmite Por Redação do ge &mdash; Porto Alegre 10/05/2026 00h30 Atualizado 10/05/2026 ",
-  "redaction_notes": "Channel names observed in prose; structured access/region/link often absent."
+  "redaction_notes": "Channel names observed in prose; structured access/region/link often absent.",
+  "coverage_warning": "Premiere-centric prose. Incomplete-list failure mode applies; cross-check other editorials and maintainer confirmation before publishing a full broadcast set."
 }

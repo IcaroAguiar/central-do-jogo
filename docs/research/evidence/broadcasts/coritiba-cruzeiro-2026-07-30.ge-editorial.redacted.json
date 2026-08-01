@@ -16,5 +16,6 @@
     "Sportv"
   ],
   "broadcast_excerpt": "Sportv e Premiere transmitem o duelo ao vivo, enquanto o ge acompanha todos os lances do jogo em Tempo Rea",
-  "redaction_notes": "Channel names observed in prose; structured access/region/link often absent."
+  "redaction_notes": "Channel names observed in prose; structured access/region/link often absent.",
+  "coverage_warning": "Observed excerpt emphasized Sportv/Premiere. Do not infer absence of CazéTV, Prime Video, or Record from this page alone."
 }

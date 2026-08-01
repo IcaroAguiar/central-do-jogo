@@ -17,7 +17,7 @@ Status legend: `viable` | `conditional` | `rejected`
 | Data | Primary source | Backup | Status |
 |------|----------------|--------|--------|
 | Schedule | `cbf_official_site` (PDF/HTML) | `openfootball_brazil` (non-authoritative) | conditional |
-| Broadcast | `ge_globo_editorial_onde_assistir` + maintainer confirmation | other editorials | conditional |
+| Broadcast | maintainer-confirmed set (REQ-013) | multi-editorial candidates (ge + others); never single ge list alone | conditional |
 | Lineup | `cbf_match_center` | ge editorial as early non-official signal | conditional |
 | News links | `gazetaesportiva_rss` | club feeds after SEC-004 | viable / conditional |
 
@@ -32,7 +32,8 @@ Status legend: `viable` | `conditional` | `rejected`
 | schedule | Copa do Brasil | cbf_official_site | conditional | expected official path; less probe depth |
 | schedule | Libertadores | conmebol_site | conditional | HTML hubs public |
 | schedule | Sudamericana | conmebol_site | conditional | HTML hubs public |
-| broadcast | Serie A | ge_globo_editorial | conditional | channel names in prose; weak structured fields |
+| broadcast | Serie A | ge_globo_editorial | conditional | candidate only; often omits CazéTV/Prime/Record; not exhaustive |
+| broadcast | Serie A | multi_editorial_union + maintainer | conditional | required path for publishable “full” broadcast lists |
 | broadcast | Serie A | official rights feed | rejected | not found free/structured |
 | broadcast | Copa do Brasil | ge_globo_editorial | conditional | same class of editorial pages (unverified volume) |
 | broadcast | Libertadores / Sudamericana | editorial HTML | conditional | fragmented rights; high ops risk |
@@ -47,7 +48,7 @@ Status legend: `viable` | `conditional` | `rejected`
 
 | Gate | Plausible free path? | Condition |
 |------|----------------------|-----------|
-| REQ-023 broadcasts | conditional | requires maintainer workflow + conservative notifications |
+| REQ-023 broadcasts | conditional | multi-source + maintainer; score false negatives (missing CazéTV/Prime/etc.) |
 | REQ-024 lineups | conditional | define official instant as CBF match-center HTML publish time |
 
 ## References

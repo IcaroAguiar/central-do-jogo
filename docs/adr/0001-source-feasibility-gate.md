@@ -28,7 +28,7 @@ Product domain work (Phase 2+) may begin **only** for:
 2. Schedule ingest centered on CBF public HTML/PDF evidence (openfootball secondary/non-authoritative)
 3. Lineups centered on CBF match-center HTML, with editorial sources marked non-official
 4. News link cards from allowlisted RSS (starting with Gazeta Esportiva)
-5. Broadcasts as **candidate** claims from public editorial pages, with low confidence until maintainer confirmation
+5. Broadcasts as **candidate** claims from public editorial pages, with low confidence until maintainer confirmation. Single editorial pages (especially Globo-family) must be treated as **incomplete** — they often omit CazéTV, Prime Video, Record, or other holders. Publishable “full” lists require multi-source union and/or maintainer confirmation.
 
 Explicitly **out of the first implementation slice** until their matrix rows are upgraded:
 
@@ -39,7 +39,7 @@ Explicitly **out of the first implementation slice** until their matrix rows are
 ### REQ-023 / REQ-024
 
 - **REQ-024:** Plausible if “official observable” means CBF match-center publication time.
-- **REQ-023:** Plausible only as a human-assisted pipeline. Do not promise push-quality broadcast accuracy before beta measurement and maintainer tooling exist.
+- **REQ-023:** Plausible only as a human-assisted pipeline. Do not promise push-quality broadcast accuracy before beta measurement and maintainer tooling exist. Beta sampling must count **missing** outlets (false negatives) as failures, not only wrong inclusions.
 
 This ADR does **not** waive the beta numeric gates; it only unlocks building toward them.
 
