@@ -1,0 +1,20 @@
+{
+  "source_id": "club_official_matchday_html",
+  "club": "Atlético Mineiro",
+  "sample_url": "https://atletico.com.br/atletico-x-mirassol-hoje-tem-jogo-do-galo-2/",
+  "captured_at_utc": "2026-08-01T11:31:30Z",
+  "http_status": 200,
+  "fields_observed": {
+    "channel_or_platform": true,
+    "labeled_transmission_field": true,
+    "free_vs_pay_explicit": false,
+    "region": false,
+    "official_deep_link": false
+  },
+  "channels_mentioned": [
+    "Premiere"
+  ],
+  "broadcast_excerpt": "Transmissão: Premiere",
+  "redaction_notes": "Second Atlético matchday post confirming the Transmissão label pattern across fixtures.",
+  "coverage_warning": "Club post may list only one carrier for this fixture; do not treat as the full rights map."
+}

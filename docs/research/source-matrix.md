@@ -17,7 +17,7 @@ Status legend: `viable` | `conditional` | `rejected`
 | Data | Primary source | Backup | Status |
 |------|----------------|--------|--------|
 | Schedule | `cbf_official_site` (PDF/HTML) | `openfootball_brazil` (non-authoritative) | conditional |
-| Broadcast | maintainer-confirmed set (REQ-013) | multi-editorial candidates (ge + others); never single ge list alone | conditional |
+| Broadcast | maintainer-confirmed set (REQ-013) | multi-source candidates (ge + other editorials + club matchday HTML); never single list alone | conditional |
 | Lineup | `cbf_match_center` | ge editorial as early non-official signal | conditional |
 | News links | `gazetaesportiva_rss` | club feeds after SEC-004 | viable / conditional |
 
@@ -33,8 +33,9 @@ Status legend: `viable` | `conditional` | `rejected`
 | schedule | Libertadores | conmebol_site | conditional | HTML hubs public |
 | schedule | Sudamericana | conmebol_site | conditional | HTML hubs public |
 | broadcast | Serie A | ge_globo_editorial | conditional | candidate only; often omits CazéTV/Prime/Record; not exhaustive |
-| broadcast | Serie A | multi_editorial_union + maintainer | conditional | required path for publishable “full” broadcast lists |
-| broadcast | Serie A | official rights feed | rejected | not found free/structured |
+| broadcast | Serie A | club_official_matchday_html | conditional | per-club HTML (e.g. Atlético `Transmissão:`); uneven coverage; PDF guides deferred |
+| broadcast | Serie A | multi_source_union + maintainer | conditional | required path for publishable “full” broadcast lists |
+| broadcast | Serie A | official rights feed | rejected | not found free/structured; club pages are not a full substitute |
 | broadcast | Copa do Brasil | ge_globo_editorial | conditional | same class of editorial pages (unverified volume) |
 | broadcast | Libertadores / Sudamericana | editorial HTML | conditional | fragmented rights; high ops risk |
 | lineup | Serie A | cbf_match_center | conditional | verified HTML Escalação/Reservas |
@@ -48,7 +49,7 @@ Status legend: `viable` | `conditional` | `rejected`
 
 | Gate | Plausible free path? | Condition |
 |------|----------------------|-----------|
-| REQ-023 broadcasts | conditional | multi-source + maintainer; score false negatives (missing CazéTV/Prime/etc.) |
+| REQ-023 broadcasts | conditional | multi-source (editorials + club matchday) + maintainer; score false negatives (missing CazéTV/Prime/etc.) |
 | REQ-024 lineups | conditional | define official instant as CBF match-center HTML publish time |
 
 ## References

@@ -28,7 +28,7 @@ Product domain work (Phase 2+) may begin **only** for:
 2. Schedule ingest centered on CBF public HTML/PDF evidence (openfootball secondary/non-authoritative)
 3. Lineups centered on CBF match-center HTML, with editorial sources marked non-official
 4. News link cards from allowlisted RSS (starting with Gazeta Esportiva)
-5. Broadcasts as **candidate** claims from public editorial pages, with low confidence until maintainer confirmation. Single editorial pages (especially Globo-family) must be treated as **incomplete** — they often omit CazéTV, Prime Video, Record, or other holders. Publishable “full” lists require multi-source union and/or maintainer confirmation.
+5. Broadcasts as **candidate** claims from public editorial pages **and** club official matchday/HTML surfaces (where a club publishes channel text), with low confidence until maintainer confirmation. Single pages (especially Globo-family editorials, or any one club post) must be treated as **incomplete** — they often omit CazéTV, Prime Video, Record, or other holders. Publishable “full” lists require multi-source union (editorials + clubs) and/or maintainer confirmation. Club PDF “guias” stay out of the first automated slice.
 
 Explicitly **out of the first implementation slice** until their matrix rows are upgraded:
 
