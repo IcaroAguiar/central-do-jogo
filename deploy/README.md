@@ -25,3 +25,14 @@ Multi-stage `deploy/Dockerfile`:
 3. Distroless static runtime serves the PWA from `STATIC_DIR` (default `/app/web/dist`)
 
 No Node runtime is present in production.
+
+## Migrations
+
+SQL migrations live in `db/migrations/` and are embedded via package `db`.
+
+The API and worker apply migrations on startup (`DATABASE_URL` is required).
+
+```bash
+export DATABASE_URL=postgres://central:central_dev_only@127.0.0.1:5433/central_do_jogo?sslmode=disable
+go run ./cmd/server
+```

@@ -40,6 +40,10 @@ func Load() (Config, error) {
 	}
 	cfg.ShutdownTimeout = time.Duration(shutdownMS) * time.Millisecond
 
+	if cfg.DatabaseURL == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL is required")
+	}
+
 	return cfg, nil
 }
 
