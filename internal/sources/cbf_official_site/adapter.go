@@ -3,6 +3,7 @@
 package cbf_official_site
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/json"
@@ -32,7 +33,16 @@ type Adapter struct{}
 
 func (a *Adapter) SourceID() string { return sourceID }
 
-func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, error) {
+func (a *Adapter) Parse(_ context.Context, raw []byte, observedAt time.Time) (*sources.Observation, error) {
+	if observedAt.IsZero() {
+		return nil, fmt.Errorf("cbf_official_site: observedAt must not be zero")
+	}
+
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return nil, fmt.Errorf("cbf_official_site: empty input (fail-closed)")
+	}
+
 	hash := fmt.Sprintf("%x", sha256.Sum256(raw))
 
 	var meta cbfMeta
@@ -47,7 +57,7 @@ func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, er
 	obs := &sources.Observation{
 		SourceID:      sourceID,
 		DataType:      sources.DataTypeSchedule,
-		ObservedAt:    time.Now().UTC(),
+		ObservedAt:    observedAt.UTC(),
 		ParserVersion: parserVersion,
 		ContentHash:   hash,
 		RawRef:        meta.SourceURL,

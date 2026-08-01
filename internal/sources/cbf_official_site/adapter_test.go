@@ -3,10 +3,13 @@ package cbf_official_site_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/sources/cbf_official_site"
 	"github.com/IcaroAguiar/central-do-jogo/internal/sources/testkit"
 )
+
+var fixedTime = time.Date(2026, 7, 1, 12, 0, 0, 0, time.UTC)
 
 func TestAdapter_SourceID(t *testing.T) {
 	a := &cbf_official_site.Adapter{}
@@ -19,13 +22,17 @@ func TestAdapter_Parse_Fixture(t *testing.T) {
 	a := &cbf_official_site.Adapter{}
 	fixture := testkit.LoadFixture(t, "fixtures/cbf-tabela-basica-2026.meta.json")
 
-	obs, err := a.Parse(context.Background(), fixture)
+	obs, err := a.Parse(context.Background(), fixture, fixedTime)
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 
 	testkit.AssertEvidencePreserved(t, obs)
 	testkit.AssertScheduleNotEmpty(t, obs)
+
+	if obs.ObservedAt != fixedTime {
+		t.Errorf("observedAt: got %v, want %v", obs.ObservedAt, fixedTime)
+	}
 
 	if len(obs.Schedules) != 2 {
 		t.Errorf("expected 2 schedule entries (round1 dates), got %d", len(obs.Schedules))
@@ -43,9 +50,17 @@ func TestAdapter_Parse_Fixture(t *testing.T) {
 
 func TestAdapter_Parse_InvalidJSON(t *testing.T) {
 	a := &cbf_official_site.Adapter{}
-	_, err := a.Parse(context.Background(), []byte("{invalid"))
+	_, err := a.Parse(context.Background(), []byte("{invalid"), fixedTime)
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+func TestAdapter_Parse_EmptyInput(t *testing.T) {
+	a := &cbf_official_site.Adapter{}
+	_, err := a.Parse(context.Background(), []byte(""), fixedTime)
+	if err == nil {
+		t.Fatal("expected fail-closed error for empty input")
 	}
 }
 
@@ -59,8 +74,16 @@ func TestAdapter_Parse_FailClosed_NoData(t *testing.T) {
 			"round1_dates": []
 		}
 	}`)
-	_, err := a.Parse(context.Background(), fixture)
+	_, err := a.Parse(context.Background(), fixture, fixedTime)
 	if err == nil {
 		t.Fatal("expected fail-closed error when no data found")
+	}
+}
+
+func TestAdapter_Parse_ZeroObservedAt(t *testing.T) {
+	a := &cbf_official_site.Adapter{}
+	_, err := a.Parse(context.Background(), []byte(`{}`), time.Time{})
+	if err == nil {
+		t.Fatal("expected error for zero observedAt")
 	}
 }

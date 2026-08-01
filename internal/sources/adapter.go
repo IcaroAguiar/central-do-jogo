@@ -34,12 +34,13 @@ type Observation struct {
 
 // ScheduleEntry is a parsed schedule fixture from a source.
 type ScheduleEntry struct {
-	HomeTeam    string
-	AwayTeam    string
-	Round       string
-	Venue       string
-	KickoffAt   *time.Time
-	Competition string
+	HomeTeam         string
+	AwayTeam         string
+	Round            string
+	Venue            string
+	KickoffAt        *time.Time
+	Competition      string
+	KickoffInherited bool
 }
 
 // LineupEntry is a parsed lineup from a source.
@@ -69,5 +70,6 @@ type Adapter interface {
 
 	// Parse processes raw content and returns observations.
 	// It must be deterministic given the same input.
-	Parse(ctx context.Context, raw []byte) (*Observation, error)
+	// observedAt is the caller-provided observation timestamp and must not be zero.
+	Parse(ctx context.Context, raw []byte, observedAt time.Time) (*Observation, error)
 }

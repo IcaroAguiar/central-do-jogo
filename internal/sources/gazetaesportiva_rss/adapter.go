@@ -2,6 +2,7 @@
 package gazetaesportiva_rss
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/xml"
@@ -35,7 +36,16 @@ type Adapter struct{}
 
 func (a *Adapter) SourceID() string { return sourceID }
 
-func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, error) {
+func (a *Adapter) Parse(_ context.Context, raw []byte, observedAt time.Time) (*sources.Observation, error) {
+	if observedAt.IsZero() {
+		return nil, fmt.Errorf("gazetaesportiva_rss: observedAt must not be zero")
+	}
+
+	trimmed := bytes.TrimSpace(raw)
+	if len(trimmed) == 0 {
+		return nil, fmt.Errorf("gazetaesportiva_rss: empty input (fail-closed)")
+	}
+
 	hash := fmt.Sprintf("%x", sha256.Sum256(raw))
 
 	var feed rssFeed
@@ -46,7 +56,7 @@ func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, er
 	obs := &sources.Observation{
 		SourceID:      sourceID,
 		DataType:      sources.DataTypeNews,
-		ObservedAt:    time.Now().UTC(),
+		ObservedAt:    observedAt.UTC(),
 		ParserVersion: parserVersion,
 		ContentHash:   hash,
 		RawRef:        "https://www.gazetaesportiva.com/feed/",
@@ -57,7 +67,7 @@ func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, er
 			continue
 		}
 
-		pubAt := time.Now().UTC()
+		pubAt := observedAt.UTC()
 		if item.PubDate != "" {
 			if t, err := time.Parse(time.RFC1123Z, item.PubDate); err == nil {
 				pubAt = t
@@ -71,6 +81,10 @@ func (a *Adapter) Parse(_ context.Context, raw []byte) (*sources.Observation, er
 			URL:         item.Link,
 			PublishedAt: pubAt,
 		})
+	}
+
+	if len(obs.NewsLinks) == 0 {
+		return nil, fmt.Errorf("gazetaesportiva_rss: non-empty input produced zero news entries (fail-closed)")
 	}
 
 	return obs, nil

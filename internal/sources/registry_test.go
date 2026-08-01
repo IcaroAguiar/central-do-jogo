@@ -3,6 +3,7 @@ package sources_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/sources"
 )
@@ -10,7 +11,7 @@ import (
 type stubAdapter struct{ id string }
 
 func (s *stubAdapter) SourceID() string { return s.id }
-func (s *stubAdapter) Parse(_ context.Context, _ []byte) (*sources.Observation, error) {
+func (s *stubAdapter) Parse(_ context.Context, _ []byte, _ time.Time) (*sources.Observation, error) {
 	return nil, nil
 }
 
