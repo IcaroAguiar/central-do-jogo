@@ -1,0 +1,21 @@
+{
+  "source_id": "club_official_matchday_html",
+  "club": "Atlético Mineiro",
+  "sample_url": "https://atletico.com.br/atletico-x-bahia-hoje-tem-jogo-do-galo-2/",
+  "captured_at_utc": "2026-08-01T11:30:00Z",
+  "http_status": 200,
+  "fields_observed": {
+    "channel_or_platform": true,
+    "labeled_transmission_field": true,
+    "free_vs_pay_explicit": false,
+    "region": false,
+    "official_deep_link": false
+  },
+  "channels_mentioned": [
+    "SporTV",
+    "Premiete"
+  ],
+  "broadcast_excerpt": "Transmissão: SporTV e Premiete",
+  "redaction_notes": "Club matchday HTML post with an explicit Transmissão label. Typo Premiete left as observed (Premiere). Galotv listed separately as pré-jogo/narração, not merged into broadcast claim.",
+  "coverage_warning": "Single-club post is a candidate signal only. Not exhaustive across rights holders; must union with other sources and/or maintainer confirmation."
+}

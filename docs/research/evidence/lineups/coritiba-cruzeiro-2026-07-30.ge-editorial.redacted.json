@@ -1,0 +1,16 @@
+{
+  "source_id": "ge_globo_editorial",
+  "sample_url": "https://ge.globo.com/pr/futebol/brasileirao-serie-a/noticia/2026/07/30/coritiba-x-cruzeiro-onde-assistir-ao-vivo-horario-e-escalacoes.ghtml",
+  "captured_at_utc": "2026-08-01T02:03:45Z",
+  "http_status": 200,
+  "lineup_kind_observed": "editorial_named_xi",
+  "lineup_excerpt": "escalação: Pedro Morisco; Tinga, Tiago Cóser, Jacy e Bruno Melo (Felipe Jonathan); Thiago Santos, Sebastián Gómez e Josué; Lucas Ronier, Breno Lopes e Pedro Rocha",
+  "channels_mentioned": [
+    "Globo",
+    "Premiere",
+    "SporTV",
+    "Sportv"
+  ],
+  "broadcast_excerpt": "Sportv e Premiere transmitem o duelo ao vivo, enquanto o ge acompanha todos os lances do jogo em Tempo Rea",
+  "redaction_notes": "Editorial page excerpts only; no full article body stored."
+}

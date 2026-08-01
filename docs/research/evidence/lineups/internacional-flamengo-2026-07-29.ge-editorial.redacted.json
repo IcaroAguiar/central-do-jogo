@@ -1,0 +1,17 @@
+{
+  "source_id": "ge_globo_editorial",
+  "sample_url": "https://ge.globo.com/rs/futebol/brasileirao-serie-a/noticia/2026/07/29/inter-x-flamengo-onde-assistir-ao-vivo-horario-e-escalacoes.ghtml",
+  "captured_at_utc": "2026-08-01T02:03:45Z",
+  "http_status": 200,
+  "lineup_kind_observed": "probable_or_editorial",
+  "lineup_excerpt": "Escalação provável: Anthoni; Bruno Gomes, Maripán, Mercado e Matheus Bahia; Villagra, Bruno Henrique, Vitinho e Bernabei; Carbonero e Alerrandro",
+  "channels_mentioned": [
+    "Globo",
+    "Premiere",
+    "Prime Video",
+    "SporTV",
+    "Sportv"
+  ],
+  "broadcast_excerpt": "Premiere transmite ao vivo Há 6 dias brasileirão série a Brasileirão: Inter fecha o turno com men",
+  "redaction_notes": "Editorial page excerpts only; no full article body stored."
+}

@@ -1,0 +1,20 @@
+{
+  "source_id": "club_official_matchday_html",
+  "club": "Atlético Mineiro",
+  "sample_url": "https://atletico.com.br/vasco-x-atletico-hoje-tem-jogo-do-galo-2/",
+  "captured_at_utc": "2026-08-01T11:31:35Z",
+  "http_status": 200,
+  "fields_observed": {
+    "channel_or_platform": true,
+    "labeled_transmission_field": true,
+    "free_vs_pay_explicit": false,
+    "region": false,
+    "official_deep_link": false
+  },
+  "channels_mentioned": [
+    "Prime Vídeo"
+  ],
+  "broadcast_excerpt": "Transmissão: Prime Vídeo",
+  "redaction_notes": "Away-match Atlético matchday post listing a non-Globo holder (Prime Video) that Globo-family editorials often omit. Orthography left as observed (Prime Vídeo).",
+  "coverage_warning": "Useful for catching non-Globo outlets; still incomplete without multi-source union and maintainer confirmation."
+}

@@ -1,0 +1,16 @@
+{
+  "source_id": "ge_globo_editorial",
+  "sample_url": "https://ge.globo.com/rs/futebol/brasileirao-serie-a/noticia/2026/05/10/gremio-x-flamengo-onde-assistir-ao-vivo-horario-e-escalacoes.ghtml",
+  "captured_at_utc": "2026-08-01T02:03:45Z",
+  "http_status": 200,
+  "lineup_kind_observed": "editorial_named_xi",
+  "lineup_excerpt": "escalação: Weverton; Gustavo Martins, Balbuena (Wagner Leonardo) e Viery; Pavon, Leo Pérez, Noriega e Pedro Gabriel; Gabriel Mec, Amuzu e Carlos Vinicius",
+  "channels_mentioned": [
+    "Globo",
+    "Premiere",
+    "SporTV",
+    "Sportv"
+  ],
+  "broadcast_excerpt": "Premiere transmite Por Redação do ge &mdash; Porto Alegre 10/05/2026 00h30 Atualizado 10/05/2026 ",
+  "redaction_notes": "Editorial page excerpts only; no full article body stored."
+}

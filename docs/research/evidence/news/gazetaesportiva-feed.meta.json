@@ -1,0 +1,15 @@
+{
+  "source_id": "gazetaesportiva_rss",
+  "source_url": "https://www.gazetaesportiva.com/feed/",
+  "captured_at_utc": "2026-08-01T02:01:41Z",
+  "http_status": 200,
+  "format": "RSS/XML",
+  "item_count_observed": 51,
+  "sample_titles_redacted": [
+    "Gazeta Esportiva",
+    "Veterano da NBA, Rozier pede arquivamento de duas acusações em caso de apostas",
+    "União São João vence Comercial e fica a um ponto da liderança do grupo na Copa Paulista"
+  ],
+  "robots_txt": "https://www.gazetaesportiva.com/robots.txt allows /feed/",
+  "redaction_notes": "Titles only; full RSS body not stored."
+}
