@@ -43,8 +43,9 @@ func TestEnqueueAndClaim(t *testing.T) {
 	ctx := context.Background()
 	store := jobs.NewStore(pool)
 
+	runAfter := time.Now().Add(-time.Second)
 	payload := json.RawMessage(`{"source":"openfootball_brazil"}`)
-	job, err := store.Enqueue(ctx, "ingest.openfootball_brazil", payload, "key-1", time.Now(), 3)
+	job, err := store.Enqueue(ctx, "ingest.openfootball_brazil", payload, "key-1", runAfter, 3)
 	if err != nil {
 		t.Fatalf("Enqueue: %v", err)
 	}
@@ -53,7 +54,7 @@ func TestEnqueueAndClaim(t *testing.T) {
 	}
 
 	// Idempotency: same key returns existing
-	job2, err := store.Enqueue(ctx, "ingest.openfootball_brazil", payload, "key-1", time.Now(), 3)
+	job2, err := store.Enqueue(ctx, "ingest.openfootball_brazil", payload, "key-1", runAfter, 3)
 	if err != nil {
 		t.Fatalf("Enqueue idempotent: %v", err)
 	}
@@ -91,22 +92,23 @@ func TestCompleteAndFail(t *testing.T) {
 	ctx := context.Background()
 	store := jobs.NewStore(pool)
 
+	runAfter := time.Now().Add(-time.Second)
 	payload := json.RawMessage(`{}`)
-	job, _ := store.Enqueue(ctx, "test.complete", payload, "complete-1", time.Now(), 3)
+	job, _ := store.Enqueue(ctx, "test.complete", payload, "complete-1", runAfter, 3)
 	_, _ = store.Claim(ctx, "w")
 	if err := store.Complete(ctx, job.ID); err != nil {
 		t.Fatalf("Complete: %v", err)
 	}
 
 	// Test Fail with retry
-	job2, _ := store.Enqueue(ctx, "test.fail", payload, "fail-1", time.Now(), 3)
+	job2, _ := store.Enqueue(ctx, "test.fail", payload, "fail-1", runAfter, 3)
 	_, _ = store.Claim(ctx, "w")
 	if err := store.Fail(ctx, job2.ID, "temporary error"); err != nil {
 		t.Fatalf("Fail: %v", err)
 	}
 
 	// After fail, job should be reclaimable (after run_after passes)
-	_, _ = pool.Exec(ctx, "UPDATE jobs SET run_after = now() WHERE id = $1", job2.ID)
+	_, _ = pool.Exec(ctx, "UPDATE jobs SET run_after = now() - interval '1 second' WHERE id = $1", job2.ID)
 	reclaimed, err := store.Claim(ctx, "w")
 	if err != nil {
 		t.Fatalf("Reclaim: %v", err)
@@ -121,13 +123,14 @@ func TestFailExhaustsToDeadStatus(t *testing.T) {
 	ctx := context.Background()
 	store := jobs.NewStore(pool)
 
+	runAfter := time.Now().Add(-time.Second)
 	payload := json.RawMessage(`{}`)
-	job, _ := store.Enqueue(ctx, "test.dead", payload, "dead-1", time.Now(), 1)
+	job, _ := store.Enqueue(ctx, "test.dead", payload, "dead-1", runAfter, 1)
 	_, _ = store.Claim(ctx, "w")
 	_ = store.Fail(ctx, job.ID, "fatal")
 
 	// Should not be claimable (dead)
-	_, _ = pool.Exec(ctx, "UPDATE jobs SET run_after = now() WHERE id = $1", job.ID)
+	_, _ = pool.Exec(ctx, "UPDATE jobs SET run_after = now() - interval '1 second' WHERE id = $1", job.ID)
 	got, err := store.Claim(ctx, "w")
 	if err != nil {
 		t.Fatalf("Claim dead: %v", err)
@@ -143,7 +146,7 @@ func TestConcurrentClaim(t *testing.T) {
 	store := jobs.NewStore(pool)
 
 	payload := json.RawMessage(`{}`)
-	_, _ = store.Enqueue(ctx, "test.concurrent", payload, "conc-1", time.Now(), 3)
+	_, _ = store.Enqueue(ctx, "test.concurrent", payload, "conc-1", time.Now().Add(-time.Second), 3)
 
 	var claimed int64
 	var wg sync.WaitGroup

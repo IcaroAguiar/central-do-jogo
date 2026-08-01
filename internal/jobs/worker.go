@@ -2,8 +2,10 @@ package jobs
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -12,6 +14,10 @@ type Handler func(ctx context.Context, job *Job) error
 
 // HandlerRegistry maps job types to handlers.
 type HandlerRegistry map[string]Handler
+
+// handlerTimeout is the maximum time a handler can run before the context is cancelled.
+// Set to LeaseDuration minus a safety buffer so the handler cannot outlive the lease.
+const handlerTimeout = 4 * time.Minute
 
 // Worker is the main job processing loop.
 type Worker struct {
@@ -72,19 +78,73 @@ func (w *Worker) tick(ctx context.Context, logger *slog.Logger) error {
 	if !ok {
 		errMsg := fmt.Sprintf("no handler registered for job type %q", job.JobType)
 		jobLogger.Error(errMsg)
-		_ = w.store.RecordAttempt(ctx, job.ID, job.Attempts, "error", errMsg)
+		if err := w.store.RecordAttempt(ctx, job.ID, job.Attempts, "error", errMsg); err != nil {
+			return fmt.Errorf("record attempt: %w", err)
+		}
 		return w.store.Fail(ctx, job.ID, errMsg)
 	}
 
-	execErr := handler(ctx, job)
+	handlerCtx, cancel := context.WithTimeout(ctx, handlerTimeout)
+	defer cancel()
+
+	execErr := handler(handlerCtx, job)
+
+	sourceID := extractSourceID(job)
+
 	if execErr != nil {
 		errMsg := execErr.Error()
 		jobLogger.Error("job failed", "error", errMsg)
-		_ = w.store.RecordAttempt(ctx, job.ID, job.Attempts, "error", errMsg)
+		if err := w.store.RecordAttempt(ctx, job.ID, job.Attempts, "error", errMsg); err != nil {
+			return fmt.Errorf("record attempt: %w", err)
+		}
+		if sourceID != "" && w.health != nil {
+			nextRun := NextRunAt(time.Now(), dataTypeFromJobType(job.JobType), nil)
+			if hErr := w.health.RecordFailure(ctx, sourceID, errMsg, nextRun); hErr != nil {
+				return fmt.Errorf("record health failure: %w", hErr)
+			}
+		}
 		return w.store.Fail(ctx, job.ID, errMsg)
 	}
 
 	jobLogger.Info("job completed")
-	_ = w.store.RecordAttempt(ctx, job.ID, job.Attempts, "success", "")
+	if err := w.store.RecordAttempt(ctx, job.ID, job.Attempts, "success", ""); err != nil {
+		return fmt.Errorf("record attempt: %w", err)
+	}
+	if sourceID != "" && w.health != nil {
+		nextRun := NextRunAt(time.Now(), dataTypeFromJobType(job.JobType), nil)
+		if hErr := w.health.RecordSuccess(ctx, sourceID, nextRun); hErr != nil {
+			return fmt.Errorf("record health success: %w", hErr)
+		}
+	}
 	return w.store.Complete(ctx, job.ID)
+}
+
+// extractSourceID attempts to read the source field from the job payload JSON,
+// falling back to the suffix after "ingest." in the job type.
+func extractSourceID(job *Job) string {
+	if job.Payload != nil {
+		var p struct {
+			Source string `json:"source"`
+		}
+		if json.Unmarshal(job.Payload, &p) == nil && p.Source != "" {
+			return p.Source
+		}
+	}
+	if strings.HasPrefix(job.JobType, "ingest.") {
+		return strings.TrimPrefix(job.JobType, "ingest.")
+	}
+	return ""
+}
+
+// dataTypeFromJobType maps a job type to the cadence data type.
+// Ingest jobs default to "schedule" cadence unless a more specific mapping exists.
+func dataTypeFromJobType(jobType string) string {
+	switch {
+	case strings.Contains(jobType, "lineup"):
+		return "lineup"
+	case strings.Contains(jobType, "news"):
+		return "news"
+	default:
+		return "schedule"
+	}
 }

@@ -19,8 +19,7 @@ const NearKickoffThreshold = 3 * time.Hour
 // NextRunAt computes the next run time for a given data type and optional
 // kickoff proximity. When kickoffAt is non-nil and within NearKickoffThreshold,
 // a shorter interval is used.
-func NextRunAt(dataType string, kickoffAt *time.Time) time.Time {
-	now := time.Now()
+func NextRunAt(now time.Time, dataType string, kickoffAt *time.Time) time.Time {
 	near := kickoffAt != nil && kickoffAt.Sub(now) <= NearKickoffThreshold && kickoffAt.After(now)
 
 	switch dataType {

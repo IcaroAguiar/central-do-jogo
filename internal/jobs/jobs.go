@@ -4,7 +4,10 @@ package jobs
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -53,10 +56,13 @@ func (s *Store) Enqueue(ctx context.Context, jobType string, payload json.RawMes
 	if maxAttempts <= 0 {
 		maxAttempts = 3
 	}
-	id := fmt.Sprintf("job_%d", time.Now().UnixNano())
+	id, err := generateJobID()
+	if err != nil {
+		return nil, fmt.Errorf("generate job id: %w", err)
+	}
 
 	var job Job
-	err := s.pool.QueryRow(ctx, `
+	err = s.pool.QueryRow(ctx, `
 		INSERT INTO jobs (id, job_type, payload, idempotency_key, run_after, max_attempts)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (idempotency_key) DO UPDATE SET id = jobs.id
@@ -78,19 +84,13 @@ func (s *Store) Enqueue(ctx context.Context, jobType string, payload json.RawMes
 const LeaseDuration = 5 * time.Minute
 
 // Claim attempts to acquire a lease on the next available job.
-// Uses FOR UPDATE SKIP LOCKED for concurrency-safe claiming.
+// Uses a CTE with FOR UPDATE SKIP LOCKED for concurrency-safe claiming.
 func (s *Store) Claim(ctx context.Context, owner string) (*Job, error) {
 	leaseExpires := time.Now().Add(LeaseDuration)
 
 	var job Job
 	err := s.pool.QueryRow(ctx, `
-		UPDATE jobs SET
-			status = $1,
-			lease_owner = $2,
-			lease_expires_at = $3,
-			attempts = attempts + 1,
-			updated_at = now()
-		WHERE id = (
+		WITH next_job AS (
 			SELECT id FROM jobs
 			WHERE (status = 'pending' OR (status = 'failed' AND attempts < max_attempts))
 			  AND run_after <= now()
@@ -99,16 +99,24 @@ func (s *Store) Claim(ctx context.Context, owner string) (*Job, error) {
 			FOR UPDATE SKIP LOCKED
 			LIMIT 1
 		)
-		RETURNING id, job_type, payload, status, lease_owner, lease_expires_at,
-		          run_after, attempts, max_attempts, idempotency_key, last_error,
-		          created_at, updated_at
+		UPDATE jobs SET
+			status = $1,
+			lease_owner = $2,
+			lease_expires_at = $3,
+			attempts = attempts + 1,
+			updated_at = now()
+		FROM next_job
+		WHERE jobs.id = next_job.id
+		RETURNING jobs.id, jobs.job_type, jobs.payload, jobs.status, jobs.lease_owner,
+		          jobs.lease_expires_at, jobs.run_after, jobs.attempts, jobs.max_attempts,
+		          jobs.idempotency_key, jobs.last_error, jobs.created_at, jobs.updated_at
 	`, StatusRunning, owner, leaseExpires).Scan(
 		&job.ID, &job.JobType, &job.Payload, &job.Status, &job.LeaseOwner,
 		&job.LeaseExpiresAt, &job.RunAfter, &job.Attempts, &job.MaxAttempts,
 		&job.IdempotencyKey, &job.LastError, &job.CreatedAt, &job.UpdatedAt,
 	)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("claim job: %w", err)
@@ -170,4 +178,12 @@ func (s *Store) RecordAttempt(ctx context.Context, jobID string, attemptNo int, 
 		return fmt.Errorf("record attempt: %w", err)
 	}
 	return nil
+}
+
+func generateJobID() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return "job_" + hex.EncodeToString(b), nil
 }

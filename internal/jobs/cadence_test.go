@@ -93,7 +93,7 @@ func TestNextRunAt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NextRunAt(tt.dataType, tt.kickoffAt)
+			got := NextRunAt(now, tt.dataType, tt.kickoffAt)
 			diff := got.Sub(now)
 			if diff < tt.wantMin || diff > tt.wantMax {
 				t.Errorf("NextRunAt diff = %v, want between %v and %v", diff, tt.wantMin, tt.wantMax)

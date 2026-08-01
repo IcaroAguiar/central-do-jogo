@@ -2,9 +2,11 @@ package jobs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -77,7 +79,7 @@ func (h *HealthStore) Get(ctx context.Context, sourceID string) (*SourceHealth, 
 		&sh.NextRunAt, &sh.ConsecutiveFailures, &sh.UpdatedAt,
 	)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get health for %s: %w", sourceID, err)
