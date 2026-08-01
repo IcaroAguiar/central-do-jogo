@@ -102,8 +102,8 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 | TASK-015 | Criar migracoes em `db/migrations/` para clubes/temporadas/competicoes/partidas, evidencias, transmissoes, escalacoes, noticias, fontes e auditoria; adicionar constraints de integridade. | x | 2026-08-01 |
 | TASK-016 | Criar `internal/sources/adapter.go`, `manifest.go`, `registry.go` e `testkit/`; implementar contrato de PAT-003 e rejeitar adaptador sem manifesto valido. | x | 2026-08-01 |
 | TASK-017 | Implementar apenas os adaptadores aprovados em `internal/sources/<source_id>/`, cada um com `manifest.yaml`, `adapter.go`, `fixtures/` e `adapter_test.go`. | x | 2026-08-01 |
-| TASK-018 | Criar `internal/reconciliation/` para regras deterministicas de PAT-002, estados de divergencia e overrides versionados. | | |
-| TASK-019 | Criar `internal/jobs/` e tabelas `jobs`, `job_attempts`, `source_health`; implementar leases PostgreSQL, retries, idempotencia e cadencia adaptativa. | | |
+| TASK-018 | Criar `internal/reconciliation/` para regras deterministicas de PAT-002, estados de divergencia e overrides versionados. | x | 2026-08-01 |
+| TASK-019 | Criar `internal/jobs/` e tabelas `jobs`, `job_attempts`, `source_health`; implementar leases PostgreSQL, retries, idempotencia e cadencia adaptativa. | x | 2026-08-01 |
 | TASK-020 | Criar `internal/platform/logging/` com JSON estruturado e redacao de segredos; registrar correlation ID, source ID, job ID e match ID sem dados pessoais desnecessarios. | x | 2026-08-01 |
 
 ### Implementation Phase 3 - Public PWA journeys
