@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
@@ -43,18 +43,30 @@ func run() error {
 		return fmt.Errorf("migrate database: %w", err)
 	}
 	logger.Info("database migrations applied")
-	logger.Info("worker started; waiting for job scheduler (Phase 2 PR C)")
 
-	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+	store := jobs.NewStore(pool)
+	healthStore := jobs.NewHealthStore(pool)
 
-	for {
-		select {
-		case <-ctx.Done():
-			logger.Info("worker shutting down")
-			return nil
-		case <-ticker.C:
-			logger.Info("worker heartbeat", "jobs_scheduled", false)
-		}
+	handlers := jobs.HandlerRegistry{
+		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
+		"ingest.cbf_match_center":    noopHandler("cbf_match_center"),
+		"ingest.cbf_official_site":   noopHandler("cbf_official_site"),
+		"ingest.gazetaesportiva":     noopHandler("gazetaesportiva"),
+	}
+
+	hostname, _ := os.Hostname()
+	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
+
+	worker := jobs.NewWorker(store, healthStore, handlers, owner)
+	logger.Info("worker started", "owner", owner, "handlers", len(handlers))
+
+	return worker.Run(ctx, logger)
+}
+
+func noopHandler(sourceID string) jobs.Handler {
+	return func(ctx context.Context, job *jobs.Job) error {
+		logger := logging.FromContext(ctx)
+		logger.Info("noop handler executed", "source_id", sourceID, "job_id", job.ID)
+		return nil
 	}
 }
