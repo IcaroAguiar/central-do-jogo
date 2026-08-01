@@ -7,7 +7,7 @@ type NewsLink struct {
 	ID           ID
 	MatchID      ID
 	EvidenceID   ID
-	SourceID     string
+	SourceID     ID
 	Title        string
 	URL          string
 	PublishedAt  time.Time

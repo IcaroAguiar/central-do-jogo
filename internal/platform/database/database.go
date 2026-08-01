@@ -2,7 +2,6 @@ package database
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
 
@@ -38,14 +37,10 @@ func OpenPool(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// Migrate runs embedded SQL migrations using a stdlib wrapper around the pool.
+// Migrate runs embedded SQL migrations using a short-lived stdlib wrapper
+// around the pool. The wrapper is closed after migrate; the pool remains open.
 func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	defer func() { _ = sqlDB.Close() }()
 	return db.Migrate(ctx, sqlDB)
-}
-
-// OpenSQL opens a *sql.DB for callers that need the stdlib interface.
-func OpenSQL(pool *pgxpool.Pool) *sql.DB {
-	return stdlib.OpenDBFromPool(pool)
 }

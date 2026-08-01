@@ -5,7 +5,7 @@ import "time"
 // Evidence is an immutable provenance record for an observed source value.
 type Evidence struct {
 	ID            ID
-	SourceID      string
+	SourceID      ID
 	MatchID       *ID
 	DataType      string
 	ObservedAt    time.Time
