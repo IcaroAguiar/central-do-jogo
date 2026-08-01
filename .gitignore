@@ -4,3 +4,36 @@
 /.private/
 *.private.md
 *.local.md
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Go
+/bin/
+/dist/
+*.exe
+*.test
+*.out
+coverage.out
+coverage.html
+
+# Node / frontend
+web/node_modules/
+web/dist/
+web/.vite/
+web/coverage/
+**/*.tsbuildinfo
+
+# Editors and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Playwright / local artifacts
+/test-results/
+/playwright-report/
+/blob-report/

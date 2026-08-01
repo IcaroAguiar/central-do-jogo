@@ -1,0 +1,46 @@
+openapi: 3.1.0
+info:
+  title: Central do Jogo Internal API
+  version: 0.1.0
+  description: >
+    Internal REST contract for the Central do Jogo MVP.
+    No third-party compatibility SLA is offered.
+  license:
+    name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+servers:
+  - url: /
+security: []
+paths:
+  /healthz:
+    get:
+      operationId: getHealthz
+      summary: Liveness probe
+      tags:
+        - platform
+      security: []
+      responses:
+        "200":
+          description: Process is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "4XX":
+          description: Client error while probing health
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required:
+        - status
+        - checkedAt
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        checkedAt:
+          type: string
+          format: date-time
+          description: UTC timestamp of the health check.

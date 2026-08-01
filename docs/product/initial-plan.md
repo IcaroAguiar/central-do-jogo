@@ -70,7 +70,7 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-001 | Criar `docs/research/source-evaluation-template.md` com campos de SEC-004, cobertura, formato, freshness, rate limit, atribuicao, evidencia e decisao. | | |
+| TASK-001 | Criar `docs/research/source-evaluation-template.md` com campos de SEC-004, cobertura, formato, freshness, rate limit, atribuicao, evidencia e decisao. | x | 2026-07-31 |
 | TASK-002 | Criar `docs/research/schedules.md` comparando fontes oficiais/publicas para Serie A, Copa do Brasil, Libertadores e Sul-Americana; registrar amostras redigidas em `docs/research/evidence/schedules/`. | | |
 | TASK-003 | Criar `docs/research/broadcasts.md` mapeando fontes de transmissao por competicao/detentor e verificando se canal, acesso, regiao e link podem ser obtidos legal e tecnicamente. | | |
 | TASK-004 | Criar `docs/research/lineups.md` avaliando fontes oficiais e latencia observavel para titulares/reservas; registrar ao menos tres casos reais em `docs/research/evidence/lineups/`. | | |
@@ -81,15 +81,16 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 ### Implementation Phase 1 - Runtime and project foundation
 
 - GOAL-002: Criar a fundacao reproduzivel do produto somente depois da aprovacao de GOAL-001.
+- Sequencia (2026-07-31): excecao aprovada para scaffold vazio de fundacao antes de GOAL-001 (health, shell PWA, Compose, CI, docs OSS). Dominio, adaptadores e jornadas de produto permanecem bloqueados por DEP-001. Ver `docs/adr/0000-toolchain-versions.md`.
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008 | Criar `go.mod`, `cmd/server/main.go`, `cmd/worker/main.go` e `internal/platform/config/config.go`; implementar shutdown por contexto e erros explicitos. Depende de TASK-007. | | |
-| TASK-009 | Criar `web/package.json`, `web/vite.config.ts`, `web/src/main.tsx`, `web/src/app/App.tsx` e `web/public/manifest.webmanifest` para a PWA React/Vite. | | |
-| TASK-010 | Criar `api/openapi.yaml`, `internal/platform/http/router.go` e `web/src/api/generated/`; gerar/validar tipos do contrato REST sem publicar SLA externo. | | |
-| TASK-011 | Criar `deploy/Dockerfile`, `deploy/compose.yaml`, `.env.example` e `deploy/README.md`; servir o build da PWA sem runtime Node e iniciar PostgreSQL com healthchecks. | | |
-| TASK-012 | Criar `LICENSE`, `README.md`, `README.en.md`, `CONTRIBUTING.md`, `SECURITY.md` e `CODE_OF_CONDUCT.md` conforme CON-007 e CON-008. | | |
-| TASK-013 | Criar `.github/workflows/ci.yml` com Go format/vet/lint/test/race, frontend lint/typecheck/unit, contrato OpenAPI e testes PostgreSQL/Playwright condicionados por escopo. | | |
+| TASK-008 | Criar `go.mod`, `cmd/server/main.go`, `cmd/worker/main.go` e `internal/platform/config/config.go`; implementar shutdown por contexto e erros explicitos. Depende de TASK-007. | x (scaffold vazio; dependencia de TASK-007 relaxada apenas para fundacao) | 2026-07-31 |
+| TASK-009 | Criar `web/package.json`, `web/vite.config.ts`, `web/src/main.tsx`, `web/src/app/App.tsx` e `web/public/manifest.webmanifest` para a PWA React/Vite. | x | 2026-07-31 |
+| TASK-010 | Criar `api/openapi.yaml`, `internal/platform/http/router.go` e `web/src/api/generated/`; gerar/validar tipos do contrato REST sem publicar SLA externo. | x (contrato minimo `/healthz`) | 2026-07-31 |
+| TASK-011 | Criar `deploy/Dockerfile`, `deploy/compose.yaml`, `.env.example` e `deploy/README.md`; servir o build da PWA sem runtime Node e iniciar PostgreSQL com healthchecks. | x | 2026-07-31 |
+| TASK-012 | Criar `LICENSE`, `README.md`, `README.en.md`, `CONTRIBUTING.md`, `SECURITY.md` e `CODE_OF_CONDUCT.md` conforme CON-007 e CON-008. | x | 2026-07-31 |
+| TASK-013 | Criar `.github/workflows/ci.yml` com Go format/vet/lint/test/race, frontend lint/typecheck/unit, contrato OpenAPI e testes PostgreSQL/Playwright condicionados por escopo. | x (CI base; Playwright/Postgres de produto adiado) | 2026-07-31 |
 
 ### Implementation Phase 2 - Domain, persistence and ingestion
 
@@ -240,4 +241,5 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 
 - Tarefa viva: https://app.notion.com/p/3ad4fec0ff5f812184b9ff3d0ea5dd86
 - Contexto original: chatgpt-conversation://6a6b736f-1d88-83e9-8dfb-f8cdda6dc50a
-- O primeiro artefato executavel deste plano e `docs/research/source-evaluation-template.md`; nenhum codigo deve ser criado antes de GOAL-001.
+- O primeiro artefato executavel deste plano e `docs/research/source-evaluation-template.md`; nenhum codigo de produto deve ser criado antes de GOAL-001.
+- Excecao documentada em 2026-07-31: scaffold vazio de fundacao (TASK-008..013 sem dominio) pode existir antes de GOAL-001; ver `docs/adr/0000-toolchain-versions.md`.
