@@ -1,0 +1,11 @@
+source_id: gazetaesportiva_rss
+display_name: Gazeta Esportiva RSS
+purpose: Parse news link cards from Gazeta Esportiva RSS feed
+access: public RSS feed (gazetaesportiva.com/feed/)
+terms_notes: RSS feed is public; only titles and URLs are extracted (no full text)
+robots_notes: robots.txt explicitly allows /feed/ path
+rate_limit: Max 1 request per 5 minutes to the feed endpoint
+attribution: "News links from gazetaesportiva.com"
+stability: RSS feed format is standard; content availability depends on publisher
+data_types: [news]
+removal_notes: Delete internal/sources/gazetaesportiva_rss/ directory and deregister from sources

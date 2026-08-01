@@ -1,0 +1,11 @@
+source_id: openfootball_brazil
+display_name: OpenFootball Brazil
+purpose: Parse Brasileiro Serie A schedule data from Football.TXT format
+access: public (GitHub raw, CC-BY licensed)
+terms_notes: Repository uses CC-BY license; attribution required
+robots_notes: GitHub raw content; no robots.txt restriction on public repos
+rate_limit: GitHub raw CDN; no authenticated rate limit for public files
+attribution: "Data from github.com/openfootball/brazil (CC-BY)"
+stability: community-maintained; season files may lag official announcements
+data_types: [schedule]
+removal_notes: Delete internal/sources/openfootball_brazil/ directory and deregister from sources
