@@ -6,7 +6,7 @@ Este repositório é público. A documentação versionada deve ajudar usuários
 
 - `product/`: visão, requisitos, escopo e notas de discovery revisadas.
 - `research/`: pesquisas sintetizadas, matrizes de fontes e evidências redigidas.
-- `adr/`: decisões arquiteturais e seus trade-offs.
+- `adr/`: decisões arquiteturais e seus trade-offs (inclui pinagem de toolchain em `0000-toolchain-versions.md`).
 
 Antes de publicar, remova credenciais, dados pessoais, URLs privadas, conteúdo de terceiros sem licença e evidências brutas que não possam ser redistribuídas.
 

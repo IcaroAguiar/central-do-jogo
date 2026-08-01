@@ -1,0 +1,18 @@
+{
+  "name": "Central do Jogo",
+  "short_name": "Central do Jogo",
+  "description": "Central pré-jogo para futebol brasileiro: onde assistir, escalações e fontes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b3d2e",
+  "theme_color": "#0b3d2e",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
