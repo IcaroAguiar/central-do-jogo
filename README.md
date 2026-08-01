@@ -2,7 +2,7 @@
 
 PWA open source de pré-jogo para o futebol brasileiro: onde assistir, escalações oficiais e links com proveniência e confiança explícitas.
 
-> Status: fundação técnica (scaffold) pronta. Implementação de produto permanece bloqueada até a pesquisa de viabilidade de fontes (Fase 0).
+> Status: Fase 2 em curso (domínio, persistência e ingestão). Allowlist: Série A condicional (ADR 0001).
 
 ## Requisitos locais
 
@@ -19,7 +19,7 @@ Detalhes em [`docs/adr/0000-toolchain-versions.md`](docs/adr/0000-toolchain-vers
 cp .env.example .env
 go run ./cmd/server
 
-# Worker (stub)
+# Worker
 go run ./cmd/worker
 
 # Frontend

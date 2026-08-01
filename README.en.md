@@ -2,7 +2,7 @@
 
 Open-source pre-match PWA for Brazilian football: where to watch, official lineups, and related links with explicit provenance and confidence.
 
-> Status: technical foundation (scaffold) is in place. Product implementation stays blocked until source-feasibility research (Phase 0) is accepted.
+> Status: Phase 2 in progress (domain, persistence, and ingestion). Allowlist: conditional Serie A (ADR 0001).
 
 ## Local requirements
 
@@ -19,7 +19,7 @@ See [`docs/adr/0000-toolchain-versions.md`](docs/adr/0000-toolchain-versions.md)
 cp .env.example .env
 go run ./cmd/server
 
-# Worker (stub)
+# Worker
 go run ./cmd/worker
 
 # Frontend
