@@ -1,0 +1,134 @@
+{
+  "source_id": "cbf_match_center",
+  "sample_url": "https://www.cbf.com.br/futebol-brasileiro/jogos/campeonato-brasileiro/serie-a/2025/317445/fluminense-x-gremio/829305?view=escalacao",
+  "captured_at_utc": "2026-08-01T02:02:00Z",
+  "http_status": 200,
+  "competition": "Campeonato Brasileiro Serie A",
+  "home_team": "Fluminense",
+  "away_team": "Gremio",
+  "observed_headings": [
+    "Escalação",
+    "Reservas"
+  ],
+  "home_starting_sample": [
+    {
+      "shirt_number": "1",
+      "name": "Fabio"
+    },
+    {
+      "shirt_number": "2",
+      "name": "Samuel Xavier"
+    },
+    {
+      "shirt_number": "3",
+      "name": "Thiago Silva"
+    },
+    {
+      "shirt_number": "8",
+      "name": "Martinelli"
+    },
+    {
+      "shirt_number": "14",
+      "name": "German Cano"
+    },
+    {
+      "shirt_number": "10",
+      "name": "PH GANSO"
+    },
+    {
+      "shirt_number": "45",
+      "name": "Lima"
+    },
+    {
+      "shirt_number": "11",
+      "name": "Keno"
+    },
+    {
+      "shirt_number": "17",
+      "name": "Canobbio"
+    },
+    {
+      "shirt_number": "23",
+      "name": "Guga"
+    },
+    {
+      "shirt_number": "26",
+      "name": "Manoel"
+    }
+  ],
+  "away_starting_sample": [
+    {
+      "shirt_number": "1",
+      "name": "Tiago Volpi"
+    },
+    {
+      "shirt_number": "2",
+      "name": "Joao Lucas"
+    },
+    {
+      "shirt_number": "15",
+      "name": "Camilo"
+    },
+    {
+      "shirt_number": "3",
+      "name": "Wagner"
+    },
+    {
+      "shirt_number": "4",
+      "name": "Kannemann"
+    },
+    {
+      "shirt_number": "7",
+      "name": "Pavon"
+    },
+    {
+      "shirt_number": "10",
+      "name": "Cristaldo"
+    },
+    {
+      "shirt_number": "17",
+      "name": "Dodi"
+    },
+    {
+      "shirt_number": "20",
+      "name": "Villasanti"
+    },
+    {
+      "shirt_number": "8",
+      "name": "Edenilson"
+    },
+    {
+      "shirt_number": "22",
+      "name": "Braithwaite"
+    }
+  ],
+  "bench_sample": [
+    {
+      "shirt_number": "16",
+      "name": "Nonato"
+    },
+    {
+      "shirt_number": "18",
+      "name": "Lezcano"
+    },
+    {
+      "shirt_number": "27",
+      "name": "Marcelo Pitaluga"
+    },
+    {
+      "shirt_number": "36",
+      "name": "Vagno"
+    },
+    {
+      "shirt_number": "37",
+      "name": "Isaque"
+    },
+    {
+      "shirt_number": "77",
+      "name": "Paulo Baya"
+    }
+  ],
+  "formation": null,
+  "head_coach": null,
+  "redaction_notes": "Partial roster sample only; cookies/headers omitted; full HTML not stored."
+}

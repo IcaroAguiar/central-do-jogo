@@ -6,10 +6,9 @@ Central do Jogo is an open-source, low-cost pre-match PWA for Brazilian football
 
 ## Current phase
 
-- Empty technical foundation (scaffold) is allowed and present: Go server/worker stubs, React/Vite shell, OpenAPI health contract, Compose, and CI.
-- Product implementation remains blocked until the source matrix is documented and accepted (`GOAL-001` / `docs/adr/0001-source-feasibility-gate.md`).
-- Next delivery work is Phase 0 research under full open-source governance (issue + branch + PR + review).
-- Start durable project documentation under `docs/`; keep decisions separate from unverified assumptions.
+- Phase 0 source feasibility is documented: see `docs/research/source-matrix.md` and `docs/adr/0001-source-feasibility-gate.md`.
+- GOAL-001 is **accepted with a conditional Serie A allowlist**. Domain/adapters may start only inside that allowlist.
+- Broadcasts remain human-assisted for accuracy; Copa do Brasil / Libertadores / Sudamericana are deferred pending deeper source rows.
 - Keep contributor-useful product, research, and architecture documents public. Put personal drafts or non-redistributable evidence only in the ignored private-document paths described in `docs/README.md`.
 
 ## Working rules
@@ -24,4 +23,4 @@ Central do Jogo is an open-source, low-cost pre-match PWA for Brazilian football
 
 ## Planned stack
 
-Go modular monolith, React + Vite PWA, PostgreSQL, REST + OpenAPI, and Docker Compose. Toolchain pins live in `docs/adr/0000-toolchain-versions.md`. Product features still wait on source feasibility.
+Go modular monolith, React + Vite PWA, PostgreSQL, REST + OpenAPI, and Docker Compose. Toolchain pins live in `docs/adr/0000-toolchain-versions.md`. Implementation must respect the Phase 0 allowlist in ADR 0001.

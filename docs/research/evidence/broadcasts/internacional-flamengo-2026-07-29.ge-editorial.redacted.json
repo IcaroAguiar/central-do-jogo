@@ -1,0 +1,21 @@
+{
+  "source_id": "ge_globo_editorial",
+  "sample_url": "https://ge.globo.com/rs/futebol/brasileirao-serie-a/noticia/2026/07/29/inter-x-flamengo-onde-assistir-ao-vivo-horario-e-escalacoes.ghtml",
+  "captured_at_utc": "2026-08-01T02:03:45Z",
+  "http_status": 200,
+  "fields_observed": {
+    "channel_or_platform": true,
+    "free_vs_pay_explicit": false,
+    "region": false,
+    "official_deep_link": false
+  },
+  "channels_mentioned": [
+    "Globo",
+    "Premiere",
+    "Prime Video",
+    "SporTV",
+    "Sportv"
+  ],
+  "broadcast_excerpt": "Premiere transmite ao vivo Há 6 dias brasileirão série a Brasileirão: Inter fecha o turno com men",
+  "redaction_notes": "Channel names observed in prose; structured access/region/link often absent."
+}

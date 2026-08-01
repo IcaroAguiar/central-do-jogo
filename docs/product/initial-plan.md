@@ -71,12 +71,12 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-001 | Criar `docs/research/source-evaluation-template.md` com campos de SEC-004, cobertura, formato, freshness, rate limit, atribuicao, evidencia e decisao. | x | 2026-07-31 |
-| TASK-002 | Criar `docs/research/schedules.md` comparando fontes oficiais/publicas para Serie A, Copa do Brasil, Libertadores e Sul-Americana; registrar amostras redigidas em `docs/research/evidence/schedules/`. | | |
-| TASK-003 | Criar `docs/research/broadcasts.md` mapeando fontes de transmissao por competicao/detentor e verificando se canal, acesso, regiao e link podem ser obtidos legal e tecnicamente. | | |
-| TASK-004 | Criar `docs/research/lineups.md` avaliando fontes oficiais e latencia observavel para titulares/reservas; registrar ao menos tres casos reais em `docs/research/evidence/lineups/`. | | |
-| TASK-005 | Criar `docs/research/news.md` com allowlist inicial, RSS/feed/HTML disponivel, atribuicao e janela de 72 horas. | | |
-| TASK-006 | Criar `docs/research/source-matrix.md` com uma linha por dado/competicao e estados `viable`, `conditional` ou `rejected`; declarar a allowlist realmente suportavel. | | |
-| TASK-007 | Criar `docs/adr/0001-source-feasibility-gate.md`; bloquear GOAL-002 se transmissoes nao tiverem caminho plausivel para REQ-023 ou escalacoes para REQ-024. | | |
+| TASK-002 | Criar `docs/research/schedules.md` comparando fontes oficiais/publicas para Serie A, Copa do Brasil, Libertadores e Sul-Americana; registrar amostras redigidas em `docs/research/evidence/schedules/`. | x | 2026-08-01 |
+| TASK-003 | Criar `docs/research/broadcasts.md` mapeando fontes de transmissao por competicao/detentor e verificando se canal, acesso, regiao e link podem ser obtidos legal e tecnicamente. | x | 2026-08-01 |
+| TASK-004 | Criar `docs/research/lineups.md` avaliando fontes oficiais e latencia observavel para titulares/reservas; registrar ao menos tres casos reais em `docs/research/evidence/lineups/`. | x | 2026-08-01 |
+| TASK-005 | Criar `docs/research/news.md` com allowlist inicial, RSS/feed/HTML disponivel, atribuicao e janela de 72 horas. | x | 2026-08-01 |
+| TASK-006 | Criar `docs/research/source-matrix.md` com uma linha por dado/competicao e estados `viable`, `conditional` ou `rejected`; declarar a allowlist realmente suportavel. | x | 2026-08-01 |
+| TASK-007 | Criar `docs/adr/0001-source-feasibility-gate.md`; bloquear GOAL-002 se transmissoes nao tiverem caminho plausivel para REQ-023 ou escalacoes para REQ-024. | x (accept condicional; ver ADR) | 2026-08-01 |
 
 ### Implementation Phase 1 - Runtime and project foundation
 

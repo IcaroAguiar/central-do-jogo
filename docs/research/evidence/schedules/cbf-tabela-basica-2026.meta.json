@@ -1,0 +1,18 @@
+{
+  "source_id": "cbf_official_site",
+  "source_url": "https://www.cbf.com.br/futebol-brasileiro/noticias/se/a/cbf-divulga-tabela-detalhada-das-primeiras-rodadas-do-brasileirao-2026",
+  "captured_at_utc": "2026-08-01T02:01:41Z",
+  "http_status": 200,
+  "observed": {
+    "page_language": "pt-BR",
+    "announces_basic_table_pdf": true,
+    "round1_dates": [
+      "2026-01-28",
+      "2026-01-29"
+    ],
+    "pdf_content_type": "application/pdf",
+    "pdf_url_host": "stcbfsiteprdimgbrs.blob.core.windows.net",
+    "pdf_bytes_content_length": 593047
+  },
+  "redaction_notes": "PDF body not stored in repo; only metadata and public news facts."
+}
