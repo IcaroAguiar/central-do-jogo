@@ -1,0 +1,21 @@
+= Brasileiro Série A 2026
+
+# Date       Wed Jan 28 - Wed Dec 2 2026 (308d)
+# Teams      20
+# Matches    380
+
+
+
+▪ Matchday 1
+  Wed Jan 28 2026
+    19:00  CA Mineiro              v SE Palmeiras             2-2 (1-1)
+           Coritiba FBC            v RB Bragantino            0-1 (0-0)
+           SC Internacional        v CA Paranaense            0-1 (0-1)
+           EC Vitória              v Clube do Remo            2-0 (0-0)
+    19:30  Fluminense FC           v Grêmio FBPA              2-1 (0-0)
+    20:00  Chapecoense AF          v Santos FC                4-2 (1-1)
+           SC Corinthians Paulista v EC Bahia                 1-2 (1-2)
+    21:30  São Paulo FC            v CR Flamengo              2-1 (0-0)
+  Thu Jan 29
+    20:00  Mirassol FC             v CR Vasco da Gama         2-1 (1-1)
+    21:30  Botafogo FR             v Cruzeiro EC              4-0 (0-0)

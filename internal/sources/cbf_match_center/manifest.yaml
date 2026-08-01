@@ -1,0 +1,11 @@
+source_id: cbf_match_center
+display_name: CBF Match Center (Escalação)
+purpose: Parse official lineups from CBF match center escalação pages
+access: public website (cbf.com.br match pages with escalação tab)
+terms_notes: Public match pages; no login required; metadata extraction only
+robots_notes: robots.txt allows crawling of match center pages
+rate_limit: Polite crawl; max 1 request per 10 seconds to cbf.com.br
+attribution: "Lineup data from cbf.com.br match center"
+stability: official source; DOM structure may change without notice
+data_types: [lineup]
+removal_notes: Delete internal/sources/cbf_match_center/ directory and deregister from sources

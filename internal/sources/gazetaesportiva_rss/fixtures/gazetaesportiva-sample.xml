@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Gazeta Esportiva</title>
+    <link>https://www.gazetaesportiva.com</link>
+    <description>Noticias esportivas</description>
+    <item>
+      <title>Veterano da NBA, Rozier pede arquivamento de duas acusações em caso de apostas</title>
+      <link>https://www.gazetaesportiva.com/nba/rozier-pede-arquivamento/</link>
+      <pubDate>Thu, 31 Jul 2026 18:30:00 -0300</pubDate>
+    </item>
+    <item>
+      <title>União São João vence Comercial e fica a um ponto da liderança do grupo na Copa Paulista</title>
+      <link>https://www.gazetaesportiva.com/copa-paulista/uniao-sao-joao-vence-comercial/</link>
+      <pubDate>Thu, 31 Jul 2026 16:45:00 -0300</pubDate>
+    </item>
+    <item>
+      <title>Flamengo treina com grupo completo para decisão na Libertadores</title>
+      <link>https://www.gazetaesportiva.com/libertadores/flamengo-treina-completo/</link>
+      <pubDate>Wed, 30 Jul 2026 14:00:00 -0300</pubDate>
+    </item>
+  </channel>
+</rss>

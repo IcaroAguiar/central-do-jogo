@@ -1,0 +1,11 @@
+source_id: cbf_official_site
+display_name: CBF Official Site
+purpose: Parse schedule metadata from CBF official announcements (HTML/PDF meta)
+access: public website (cbf.com.br)
+terms_notes: Public news pages; no scraping of protected content; metadata only
+robots_notes: robots.txt allows crawling of public news URLs
+rate_limit: Polite crawl; max 1 request per 10 seconds to cbf.com.br
+attribution: "Schedule data from cbf.com.br (Confederação Brasileira de Futebol)"
+stability: official source; URL structure may change between seasons
+data_types: [schedule]
+removal_notes: Delete internal/sources/cbf_official_site/ directory and deregister from sources
