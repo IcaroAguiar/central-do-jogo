@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/platform/brasilia"
 	servertemplates "github.com/IcaroAguiar/central-do-jogo/web/server-templates"
 )
 
@@ -37,7 +38,15 @@ type Renderer struct {
 // New parses the embedded server templates. Parsing happens once at startup;
 // a parse failure is a programming error and should abort boot.
 func New() (*Renderer, error) {
-	tmpl, err := template.ParseFS(servertemplates.FS, "*.tmpl")
+	funcs := template.FuncMap{
+		"formatBrasilia":      brasilia.FormatWithLabel,
+		"availabilityLabel":   AvailabilityLabel,
+		"accessLabel":         AccessLabel,
+		"confidenceLabel":     ConfidenceLabel,
+		"kickoffStateLabel":   KickoffStateLabel,
+		"lastAttemptSentence": LastAttemptSentence,
+	}
+	tmpl, err := template.New("").Funcs(funcs).ParseFS(servertemplates.FS, "*.tmpl")
 	if err != nil {
 		return nil, fmt.Errorf("parse server templates: %w", err)
 	}
@@ -118,7 +127,7 @@ type LineupPlayerViewModel struct {
 
 // LineupViewModel is one club's lineup on the match SSR page.
 type LineupViewModel struct {
-	Side      string
+	SideLabel string
 	Formation string
 	Coach     string
 	Players   []LineupPlayerViewModel

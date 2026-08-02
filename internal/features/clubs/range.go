@@ -3,6 +3,8 @@ package clubs
 import (
 	"fmt"
 	"time"
+
+	"github.com/IcaroAguiar/central-do-jogo/internal/platform/brasilia"
 )
 
 // Range identifies an agenda window for a club's matches (REQ-004).
@@ -28,12 +30,6 @@ func ParseRange(raw string) (Range, error) {
 	}
 }
 
-// brasiliaOffset is the fixed UTC-3 offset used for Brasilia time. Brazil has
-// not observed daylight saving time since 2019, so a fixed offset is
-// deterministic and avoids depending on tzdata being present in the runtime
-// image (CON-008 requires explicit Brasilia time).
-var brasiliaZone = time.FixedZone("-03:00", -3*60*60)
-
 // bounds computes the [start, end) UTC kickoff window for a range, anchored
 // on "today" in Brasilia time as observed at `now`. Season returns (nil, nil)
 // since it is not time-bounded.
@@ -42,15 +38,15 @@ func bounds(rng Range, now time.Time) (start, end *time.Time) {
 		return nil, nil
 	}
 
-	local := now.In(brasiliaZone)
+	local := now.In(brasilia.Zone)
 
 	var startLocal, endLocal time.Time
 	switch rng {
 	case RangeMonth:
-		startLocal = time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, brasiliaZone)
+		startLocal = time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, brasilia.Zone)
 		endLocal = startLocal.AddDate(0, 1, 0)
 	default: // RangeWeek
-		startLocal = time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, brasiliaZone)
+		startLocal = time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, brasilia.Zone)
 		endLocal = startLocal.AddDate(0, 0, 7)
 	}
 

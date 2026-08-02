@@ -43,8 +43,8 @@ paths:
       operationId: searchClubsAndMatches
       summary: Search clubs and matches by free-text query (REQ-005)
       description: >
-        Rate limited per client IP (SEC-001). Returns up to 10 club hits and
-        10 match hits ordered by relevance.
+        Returns up to 10 club hits (ordered by name) and up to 10 match hits
+        (ordered by kickoff time).
       tags:
         - search
       security: []

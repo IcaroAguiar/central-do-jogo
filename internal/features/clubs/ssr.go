@@ -74,7 +74,7 @@ func NewClubSSRHandler(svc *Service, renderer *render.Renderer, baseURL string, 
 			return
 		}
 
-		matchesResp, err := svc.GetMatches(r.Context(), slug, RangeSeason, now().Year())
+		matchesResp, err := svc.GetMatches(r.Context(), slug, RangeWeek, now().Year())
 		if err != nil {
 			logger.Error("ssr club: get matches", slog.String("error", err.Error()))
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -83,10 +83,10 @@ func NewClubSSRHandler(svc *Service, renderer *render.Renderer, baseURL string, 
 
 		var matchLinks []render.MatchLink
 		if matchesResp != nil {
-			for i, m := range matchesResp.Matches {
-				if i >= clubMatchesLimit {
-					break
-				}
+			if len(matchesResp.Matches) > clubMatchesLimit {
+				matchesResp.Matches = matchesResp.Matches[:clubMatchesLimit]
+			}
+			for _, m := range matchesResp.Matches {
 				matchLinks = append(matchLinks, render.MatchLink{
 					Slug:         m.Slug,
 					HomeClubName: m.HomeClub.Name,

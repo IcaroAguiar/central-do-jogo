@@ -157,4 +157,3 @@ func TestClientIPHonorsXFFFromTrustedProxy(t *testing.T) {
 		t.Fatalf("ClientIP = %q, want original client from XFF", ip)
 	}
 }
-

@@ -4,6 +4,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestRenderHomeEscapesClubNamesAndInitialData(t *testing.T) {
@@ -104,8 +105,8 @@ func TestRenderMatchEscapesNestedUserContent(t *testing.T) {
 			},
 			Lineups: []LineupViewModel{
 				{
-					Side:  "home",
-					Coach: `<img src=x onerror=alert('coach')>`,
+					SideLabel: "Home FC",
+					Coach:     `<img src=x onerror=alert('coach')>`,
 					Players: []LineupPlayerViewModel{
 						{ShirtNumber: "1", Name: `</li><script>alert('player')</script>`, IsStarter: true},
 					},
@@ -129,6 +130,42 @@ func TestRenderMatchEscapesNestedUserContent(t *testing.T) {
 	// html/template neutralizes javascript: URLs in href attributes.
 	if strings.Contains(body, `href="javascript:alert(1)"`) {
 		t.Fatal("javascript: URL was not neutralized in href attribute")
+	}
+}
+
+func TestRenderMatchUsesBrasiliaAndPTBRLabels(t *testing.T) {
+	t.Parallel()
+	r, err := New()
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	kickoff := time.Date(2026, 8, 2, 21, 0, 0, 0, time.UTC) // 18:00 BRT
+	attempt := kickoff.Add(-time.Hour)
+	page := MatchPage{
+		Meta: Meta{Title: "Match", CanonicalURL: "/jogos/a", OGType: "article"},
+		Match: MatchViewModel{
+			HomeClubName:           "Home",
+			AwayClubName:           "Away",
+			KickoffAt:              &kickoff,
+			BroadcastState:         "awaiting_publication",
+			LineupState:            "available",
+			NewsState:              "no_coverage",
+			BroadcastLastAttemptAt: &attempt,
+		},
+	}
+	rec := httptest.NewRecorder()
+	if err := r.RenderMatch(rec, 200, page); err != nil {
+		t.Fatalf("RenderMatch() error: %v", err)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "02/08/2026 18:00 (Horário de Brasília)") {
+		t.Fatalf("expected Brasília kickoff label, body=%s", body)
+	}
+	if !strings.Contains(body, "Aguardando divulgação oficial") {
+		t.Fatalf("expected pt-BR availability label, body=%s", body)
+	}
+	if strings.Contains(body, " UTC") {
+		t.Fatal("SSR must not render UTC product timestamps (CON-008)")
 	}
 }
 

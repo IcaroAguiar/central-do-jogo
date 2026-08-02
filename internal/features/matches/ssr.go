@@ -74,8 +74,12 @@ func toMatchViewModel(d *Detail) render.MatchViewModel {
 				IsStarter:   p.IsStarter,
 			})
 		}
+		sideLabel := d.AwayClub.Name
+		if l.Side == "home" {
+			sideLabel = d.HomeClub.Name
+		}
 		lineups = append(lineups, render.LineupViewModel{
-			Side:      l.Side,
+			SideLabel: sideLabel,
 			Formation: l.Formation,
 			Coach:     l.Coach,
 			Players:   players,

@@ -30,7 +30,7 @@ export interface paths {
         };
         /**
          * Search clubs and matches by free-text query (REQ-005)
-         * @description Rate limited per client IP (SEC-001). Returns up to 10 club hits and 10 match hits ordered by relevance.
+         * @description Returns up to 10 club hits (ordered by name) and up to 10 match hits (ordered by kickoff time).
          */
         get: operations["searchClubsAndMatches"];
         put?: never;

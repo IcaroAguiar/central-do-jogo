@@ -20,13 +20,13 @@
 </header>
 <main>
   <section aria-labelledby="matches-heading">
-    <h2 id="matches-heading">Próximos jogos</h2>
+    <h2 id="matches-heading">Agenda desta semana</h2>
     {{if .Matches}}
     <ul>
       {{range .Matches}}
       <li>
         <a href="/jogos/{{.Slug}}">{{.HomeClubName}} x {{.AwayClubName}}</a>
-        {{if .KickoffAt}} — {{.KickoffAt.Format "02/01/2006 15:04"}} UTC{{else}} — data {{.KickoffState}}{{end}}
+        {{if .KickoffAt}} — {{formatBrasilia .KickoffAt}}{{else}} — data {{kickoffStateLabel .KickoffState}}{{end}}
       </li>
       {{end}}
     </ul>
