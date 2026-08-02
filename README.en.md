@@ -2,7 +2,7 @@
 
 Open-source pre-match PWA for Brazilian football: where to watch, official lineups, and related links with explicit provenance and confidence.
 
-> Status: Phase 2 in progress (domain, persistence, and ingestion). Allowlist: conditional Serie A (ADR 0001).
+> Status: Phase 2 done (domain, persistence, jobs queue). Phase 3 in progress (search, club agenda, match detail, SSR, and sample data seeding). Allowlist: conditional Serie A (ADR 0001).
 
 ## Local requirements
 
@@ -35,6 +35,23 @@ docker compose -f deploy/compose.yaml up --build
 ```
 
 Probe: `GET http://127.0.0.1:8080/healthz`
+
+### Seed sample data
+
+After running migrations, populate the database with Serie A clubs, one
+competition, and a varied set of matches for local development (idempotent;
+this does not replace the ingest adapters, which remain a no-op in this
+phase):
+
+```bash
+go run ./cmd/seed
+```
+
+This enables the public read routes: `GET /api/v1/search?q=...`,
+`GET /api/v1/clubs/{slug}`, `GET /api/v1/clubs/{slug}/matches`,
+`GET /api/v1/matches/{slug}`, plus the server-rendered pages at `/`,
+`/clubes/{slug}`, and `/jogos/{slug}`. Full contract in
+[`api/openapi.yaml`](api/openapi.yaml).
 
 ## Docs
 

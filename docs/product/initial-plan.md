@@ -112,12 +112,12 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-021 | Implementar `internal/features/search/` e `web/src/features/search/` para clubes/apelidos/partidas, com rate limit e navegacao por teclado. | | |
-| TASK-022 | Implementar `internal/features/clubs/` e `web/src/features/clubs/` para agenda semana/mes/temporada, principal/favoritos locais e estados de calendario. | | |
-| TASK-023 | Implementar `internal/features/matches/` e `web/src/features/matches/` para transmissoes, confianca, escalacoes, noticias e estados de lacuna. | | |
-| TASK-024 | Criar `internal/platform/render/` e templates em `web/server-templates/` para HTML inicial, metadados, canonical URL, Open Graph e dados iniciais serializados com escaping seguro. | | |
-| TASK-025 | Implementar service worker em `web/src/pwa/` com app shell, cache de ultimas consultas, timestamp, estado offline e retry; nunca cachear respostas privadas/exportacoes. | | |
-| TASK-026 | Implementar Web Share/copy em `web/src/features/sharing/` e fallback acessivel; validar previews de clubes e partidas. | | |
+| TASK-021 | Implementar `internal/features/search/` e `web/src/features/search/` para clubes/apelidos/partidas, com rate limit e navegacao por teclado. | x | 2026-08-01 |
+| TASK-022 | Implementar `internal/features/clubs/` e `web/src/features/clubs/` para agenda semana/mes/temporada, principal/favoritos locais e estados de calendario. | x | 2026-08-01 |
+| TASK-023 | Implementar `internal/features/matches/` e `web/src/features/matches/` para transmissoes, confianca, escalacoes, noticias e estados de lacuna. | x | 2026-08-01 |
+| TASK-024 | Criar `internal/platform/render/` e templates em `web/server-templates/` para HTML inicial, metadados, canonical URL, Open Graph e dados iniciais serializados com escaping seguro. | x | 2026-08-01 |
+| TASK-025 | Implementar service worker em `web/src/pwa/` com app shell, cache de ultimas consultas, timestamp, estado offline e retry; nunca cachear respostas privadas/exportacoes. | x | 2026-08-01 |
+| TASK-026 | Implementar Web Share/copy em `web/src/features/sharing/` e fallback acessivel; validar previews de clubes e partidas. | x | 2026-08-01 |
 
 ### Implementation Phase 4 - Identity, Push and operations
 

@@ -2,7 +2,7 @@
 
 PWA open source de pré-jogo para o futebol brasileiro: onde assistir, escalações oficiais e links com proveniência e confiança explícitas.
 
-> Status: Fase 2 em curso (domínio, persistência e ingestão). Allowlist: Série A condicional (ADR 0001).
+> Status: Fase 2 concluída (domínio, persistência e fila de jobs). Fase 3 em curso (busca, agenda do clube, detalhe de partida, SSR e seed de dados de exemplo). Allowlist: Série A condicional (ADR 0001).
 
 ## Requisitos locais
 
@@ -35,6 +35,23 @@ docker compose -f deploy/compose.yaml up --build
 ```
 
 Probe: `GET http://127.0.0.1:8080/healthz`
+
+### Seed de dados de exemplo
+
+Após aplicar as migrações, popule o banco com clubes da Série A, uma
+competição e um conjunto variado de partidas para desenvolvimento local
+(idempotente; não substitui os adapters de ingestão, que permanecem no-op
+nesta fase):
+
+```bash
+go run ./cmd/seed
+```
+
+Isso habilita as rotas públicas: `GET /api/v1/search?q=...`,
+`GET /api/v1/clubs/{slug}`, `GET /api/v1/clubs/{slug}/matches`,
+`GET /api/v1/matches/{slug}`, além das páginas renderizadas no servidor `/`,
+`/clubes/{slug}` e `/jogos/{slug}`. Contrato completo em
+[`api/openapi.yaml`](api/openapi.yaml).
 
 ## Documentação
 

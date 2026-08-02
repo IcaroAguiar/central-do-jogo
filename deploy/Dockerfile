@@ -15,6 +15,7 @@ RUN go mod download
 COPY db/ ./db/
 COPY cmd/ ./cmd/
 COPY internal/ ./internal/
+COPY web/server-templates/ ./web/server-templates/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/server ./cmd/server \
   && CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/worker ./cmd/worker
 

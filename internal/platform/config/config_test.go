@@ -30,6 +30,18 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DatabaseURL == "" {
 		t.Fatal("DatabaseURL unexpectedly empty")
 	}
+	if !cfg.SSREnabled {
+		t.Fatal("SSREnabled default should be true")
+	}
+	if cfg.SearchRateLimitPerSecond != 2 {
+		t.Fatalf("SearchRateLimitPerSecond = %v, want 2", cfg.SearchRateLimitPerSecond)
+	}
+	if cfg.SearchRateLimitBurst != 10 {
+		t.Fatalf("SearchRateLimitBurst = %d, want 10", cfg.SearchRateLimitBurst)
+	}
+	if cfg.PublicBaseURL != "" {
+		t.Fatalf("PublicBaseURL = %q, want empty", cfg.PublicBaseURL)
+	}
 }
 
 func TestLoadCustomValues(t *testing.T) {
@@ -50,6 +62,41 @@ func TestLoadCustomValues(t *testing.T) {
 	}
 	if cfg.StaticDir != "/srv/static" {
 		t.Fatalf("StaticDir = %q, want /srv/static", cfg.StaticDir)
+	}
+}
+
+func TestLoadSSRAndRateLimitOverrides(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("SSR_ENABLED", "false")
+	t.Setenv("SEARCH_RATE_LIMIT_PER_SECOND", "5.5")
+	t.Setenv("SEARCH_RATE_LIMIT_BURST", "20")
+	t.Setenv("PUBLIC_BASE_URL", "https://example.org/")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if cfg.SSREnabled {
+		t.Fatal("SSREnabled should be false")
+	}
+	if cfg.SearchRateLimitPerSecond != 5.5 {
+		t.Fatalf("SearchRateLimitPerSecond = %v, want 5.5", cfg.SearchRateLimitPerSecond)
+	}
+	if cfg.SearchRateLimitBurst != 20 {
+		t.Fatalf("SearchRateLimitBurst = %d, want 20", cfg.SearchRateLimitBurst)
+	}
+	if cfg.PublicBaseURL != "https://example.org" {
+		t.Fatalf("PublicBaseURL = %q, want trimmed trailing slash", cfg.PublicBaseURL)
+	}
+}
+
+func TestLoadRejectsInvalidRateLimit(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	t.Setenv("SEARCH_RATE_LIMIT_PER_SECOND", "0")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() expected error for non-positive rate limit")
 	}
 }
 

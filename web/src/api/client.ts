@@ -1,0 +1,96 @@
+import type { components } from "./generated/schema";
+
+export type ClubDetail = components["schemas"]["ClubDetail"];
+export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
+export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
+export type MatchDetail = components["schemas"]["MatchDetail"];
+export type SearchResponse = components["schemas"]["SearchResponse"];
+export type SearchClubResult = components["schemas"]["SearchClubResult"];
+export type SearchMatchResult = components["schemas"]["SearchMatchResult"];
+export type AgendaRange = components["schemas"]["AgendaRange"];
+export type AvailabilityState = components["schemas"]["AvailabilityState"];
+export type ConfidenceLevel = components["schemas"]["ConfidenceLevel"];
+export type AccessType = components["schemas"]["AccessType"];
+export type KickoffState = components["schemas"]["KickoffState"];
+export type BroadcastView = components["schemas"]["BroadcastView"];
+export type LineupView = components["schemas"]["LineupView"];
+export type NewsLinkView = components["schemas"]["NewsLinkView"];
+
+/**
+ * X-Cache header set by our service worker (web/src/pwa/sw.ts) on cached
+ * GET /api/v1/* responses so the UI can render "showing saved data from
+ * <cachedAt>" instead of silently serving stale content.
+ */
+export const CACHED_AT_HEADER = "x-cdj-cached-at";
+
+/** ApiRequestError wraps the standard {"error":{"code","message"}} envelope
+ * every /api/v1 route returns (see internal/platform/http/apierror.go). */
+export class ApiRequestError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, message: string) {
+    super(message);
+    this.name = "ApiRequestError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+export interface ApiResult<T> {
+  data: T;
+  /** ISO timestamp when this response was cached by the service worker, or
+   * null when it came straight from the network. */
+  cachedAt: string | null;
+}
+
+interface ErrorEnvelope {
+  error: { code: string; message: string };
+}
+
+async function request<T>(path: string): Promise<ApiResult<T>> {
+  const response = await fetch(path, { headers: { Accept: "application/json" } });
+
+  if (!response.ok) {
+    let code = "unknown_error";
+    let message = response.statusText || "request failed";
+    try {
+      const body = (await response.json()) as ErrorEnvelope;
+      code = body.error.code;
+      message = body.error.message;
+    } catch {
+      // Body was not JSON (e.g. network-level failure page); keep defaults.
+    }
+    throw new ApiRequestError(response.status, code, message);
+  }
+
+  const data = (await response.json()) as T;
+  return { data, cachedAt: response.headers.get(CACHED_AT_HEADER) };
+}
+
+export function fetchSearch(query: string): Promise<ApiResult<SearchResponse>> {
+  const params = new URLSearchParams({ q: query });
+  return request<SearchResponse>(`/api/v1/search?${params.toString()}`);
+}
+
+export function fetchClub(slug: string): Promise<ApiResult<ClubDetail>> {
+  return request<ClubDetail>(`/api/v1/clubs/${encodeURIComponent(slug)}`);
+}
+
+export function fetchClubMatches(
+  slug: string,
+  range: AgendaRange,
+  season?: number,
+): Promise<ApiResult<ClubMatchesResponse>> {
+  const params = new URLSearchParams({ range });
+  if (season) {
+    params.set("season", String(season));
+  }
+  return request<ClubMatchesResponse>(
+    `/api/v1/clubs/${encodeURIComponent(slug)}/matches?${params.toString()}`,
+  );
+}
+
+export function fetchMatch(slug: string): Promise<ApiResult<MatchDetail>> {
+  return request<MatchDetail>(`/api/v1/matches/${encodeURIComponent(slug)}`);
+}

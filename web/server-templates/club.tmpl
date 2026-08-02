@@ -1,0 +1,44 @@
+{{define "club"}}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "head-meta" .Meta}}
+</head>
+<body>
+<div id="ssr-content">
+{{if .NotFound}}
+<main>
+  <h1>Clube não encontrado</h1>
+  <p>Não encontramos um clube com este endereço. Volte para a <a href="/">página inicial</a>.</p>
+</main>
+{{else}}
+<header>
+  <h1>{{.Club.Name}}</h1>
+  {{if .Club.ShortName}}<p>{{.Club.ShortName}}</p>{{end}}
+</header>
+<main>
+  <section aria-labelledby="matches-heading">
+    <h2 id="matches-heading">Agenda desta semana</h2>
+    {{if .Matches}}
+    <ul>
+      {{range .Matches}}
+      <li>
+        <a href="/jogos/{{.Slug}}">{{.HomeClubName}} x {{.AwayClubName}}</a>
+        {{if .KickoffAt}} — {{formatBrasilia .KickoffAt}}{{else}} — data {{kickoffStateLabel .KickoffState}}{{end}}
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p>Nenhum jogo encontrado para este período.</p>
+    {{end}}
+  </section>
+</main>
+{{end}}
+</div>
+{{template "initial-data" .InitialData}}
+{{template "app-shell" .}}
+</body>
+</html>
+{{end}}

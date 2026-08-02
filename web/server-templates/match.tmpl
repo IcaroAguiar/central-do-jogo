@@ -1,0 +1,82 @@
+{{define "match"}}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "head-meta" .Meta}}
+</head>
+<body>
+<div id="ssr-content">
+{{if .NotFound}}
+<main>
+  <h1>Partida não encontrada</h1>
+  <p>Não encontramos uma partida com este endereço. Volte para a <a href="/">página inicial</a>.</p>
+</main>
+{{else}}
+<header>
+  <h1>{{.Match.HomeClubName}} x {{.Match.AwayClubName}}</h1>
+  <p>
+    {{.Match.Round}} —
+    {{if .Match.KickoffAt}}{{formatBrasilia .Match.KickoffAt}}{{else}}data {{kickoffStateLabel .Match.KickoffState}}{{end}}
+    {{if .Match.Venue}} — {{.Match.Venue}}{{end}}
+  </p>
+</header>
+<main>
+  <section aria-labelledby="broadcasts-heading">
+    <h2 id="broadcasts-heading">Onde assistir</h2>
+    {{if .Match.Broadcasts}}
+    <ul>
+      {{range .Match.Broadcasts}}
+      <li>{{.Channel}}{{if .Platform}} ({{.Platform}}){{end}} — {{accessLabel .Access}} — {{confidenceLabel .Confidence}} — fonte {{.Source}}</li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p>
+      Estado da transmissão: {{availabilityLabel .Match.BroadcastState}}.
+      {{lastAttemptSentence (formatBrasilia .Match.BroadcastLastAttemptAt)}}
+    </p>
+    {{end}}
+  </section>
+
+  <section aria-labelledby="lineups-heading">
+    <h2 id="lineups-heading">Escalações</h2>
+    {{if .Match.Lineups}}
+    {{range .Match.Lineups}}
+    <article>
+      <h3>{{.SideLabel}}{{if .Formation}} — {{.Formation}}{{end}}</h3>
+      {{if .Coach}}<p>Técnico: {{.Coach}}</p>{{end}}
+      <ul>
+        {{range .Players}}<li>{{if .ShirtNumber}}{{.ShirtNumber}} — {{end}}{{.Name}}{{if not .IsStarter}} (reserva){{end}}</li>{{end}}
+      </ul>
+    </article>
+    {{end}}
+    {{else}}
+    <p>
+      Estado da escalação: {{availabilityLabel .Match.LineupState}}.
+      {{lastAttemptSentence (formatBrasilia .Match.LineupLastAttemptAt)}}
+    </p>
+    {{end}}
+  </section>
+
+  <section aria-labelledby="news-heading">
+    <h2 id="news-heading">Notícias relacionadas</h2>
+    {{if .Match.News}}
+    <ul>
+      {{range .Match.News}}<li><a href="{{.URL}}">{{.Title}}</a> — {{.Source}}</li>{{end}}
+    </ul>
+    {{else}}
+    <p>
+      Estado das notícias: {{availabilityLabel .Match.NewsState}}.
+      {{lastAttemptSentence (formatBrasilia .Match.NewsLastAttemptAt)}}
+    </p>
+    {{end}}
+  </section>
+</main>
+{{end}}
+</div>
+{{template "initial-data" .InitialData}}
+{{template "app-shell" .}}
+</body>
+</html>
+{{end}}

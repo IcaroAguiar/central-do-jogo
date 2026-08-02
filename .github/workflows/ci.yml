@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -74,4 +76,66 @@ jobs:
         run: docker build -f deploy/Dockerfile .
       - name: Validate Compose file
         run: docker compose -f deploy/compose.yaml config
+
+  # Opt-in only: needs a live Postgres + built stack, heavier than the jobs
+  # above. Trigger manually (workflow_dispatch) or by labeling a PR
+  # "run-e2e". See e2e/public/README.md for the equivalent local steps.
+  e2e-public:
+    name: E2E (public smoke)
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-e2e')
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17.10-alpine
+        env:
+          POSTGRES_USER: central
+          POSTGRES_PASSWORD: central_dev_only
+          POSTGRES_DB: central_do_jogo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
+      SSR_ENABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.1"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+      - name: Install web deps
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: Build web assets
+        working-directory: web
+        run: pnpm build
+      - name: Seed database
+        run: go run ./cmd/seed
+      - name: Start server
+        run: |
+          nohup go run ./cmd/server > server.log 2>&1 &
+          echo $! > server.pid
+      - name: Wait for server
+        run: npx --yes wait-on http://127.0.0.1:8080/healthz
+      - name: Install Playwright browsers
+        working-directory: web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run e2e
+        working-directory: web
+        run: pnpm e2e
+      - name: Server logs
+        if: always()
+        run: cat server.log || true
+      - name: Stop server
+        if: always()
+        run: kill "$(cat server.pid)" || true
 

@@ -21,6 +21,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search clubs and matches by free-text query (REQ-005)
+         * @description Returns up to 10 club hits (ordered by name) and up to 10 match hits (ordered by kickoff time).
+         */
+        get: operations["searchClubsAndMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Club detail (REQ-002) */
+        get: operations["getClubDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/clubs/{slug}/matches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Club match agenda (REQ-004) */
+        get: operations["getClubMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/matches/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Match detail with broadcasts, lineups, and news (REQ-006..REQ-010) */
+        get: operations["getMatchDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -34,9 +105,161 @@ export interface components {
              */
             checkedAt: string;
         };
+        Error: {
+            error: {
+                /** @description Stable machine-readable error code, e.g. club_not_found. */
+                code: string;
+                /** @description Human-readable error message. */
+                message: string;
+            };
+        };
+        /** @enum {string} */
+        AgendaRange: "week" | "month" | "season";
+        /**
+         * @description Whether a kickoff instant is known and stable.
+         * @enum {string}
+         */
+        KickoffState: "published" | "indefinite" | "changed";
+        /**
+         * @description REQ-010 gap state for a match-scoped data surface (broadcast, lineup, or news). Always present so the UI can render an explicit state instead of silently omitting data.
+         * @enum {string}
+         */
+        AvailabilityState: "available" | "awaiting_publication" | "not_found" | "divergent" | "no_coverage";
+        /**
+         * @description Whether a broadcast requires a subscription.
+         * @enum {string}
+         */
+        AccessType: "free" | "subscription" | "unknown";
+        /**
+         * @description Deterministic confidence band for a broadcast claim.
+         * @enum {string}
+         */
+        ConfidenceLevel: "high" | "medium" | "low";
+        /** @enum {string} */
+        LineupSide: "home" | "away";
+        ClubRef: {
+            slug: string;
+            name: string;
+            shortName: string;
+        };
+        CompetitionRef: {
+            slug: string;
+            name: string;
+            season: number;
+        };
+        /**
+         * @description Discriminator for PAT-004 #initial-data payloads. Must stay aligned with internal/api page constants and web/src/lib/pages.ts.
+         * @enum {string}
+         */
+        SSRPage: "home" | "club" | "match";
+        SearchClubResult: components["schemas"]["ClubRef"];
+        SearchMatchResult: {
+            slug: string;
+            round: string;
+            homeClub: components["schemas"]["ClubRef"];
+            awayClub: components["schemas"]["ClubRef"];
+            /**
+             * Format: date-time
+             * @description UTC kickoff instant; null when kickoffState is indefinite.
+             */
+            kickoffAt: string | null;
+            kickoffState: components["schemas"]["KickoffState"];
+        };
+        SearchResponse: {
+            query: string;
+            clubs: components["schemas"]["SearchClubResult"][];
+            matches: components["schemas"]["SearchMatchResult"][];
+        };
+        ClubDetail: {
+            slug: string;
+            name: string;
+            shortName: string;
+            aliases: string[];
+        };
+        ClubMatchSummary: {
+            slug: string;
+            round: string;
+            venue: string;
+            homeClub: components["schemas"]["ClubRef"];
+            awayClub: components["schemas"]["ClubRef"];
+            /** Format: date-time */
+            kickoffAt: string | null;
+            kickoffState: components["schemas"]["KickoffState"];
+            broadcastState: components["schemas"]["AvailabilityState"];
+            lineupState: components["schemas"]["AvailabilityState"];
+            newsState: components["schemas"]["AvailabilityState"];
+        };
+        ClubMatchesResponse: {
+            range: components["schemas"]["AgendaRange"];
+            season: number;
+            matches: components["schemas"]["ClubMatchSummary"][];
+        };
+        BroadcastView: {
+            channel: string;
+            platform: string;
+            access: components["schemas"]["AccessType"];
+            region: string;
+            officialUrl: string;
+            confidence: components["schemas"]["ConfidenceLevel"];
+            /** Format: date-time */
+            verifiedAt: string;
+            /** @description Display name of the evidence source backing this claim. */
+            source: string;
+        };
+        LineupPlayerView: {
+            shirtNumber: string;
+            name: string;
+            isStarter: boolean;
+        };
+        LineupView: {
+            side: components["schemas"]["LineupSide"];
+            formation: string;
+            coach: string;
+            players: components["schemas"]["LineupPlayerView"][];
+            official: boolean;
+            /** Format: date-time */
+            publishedAt: string | null;
+        };
+        NewsLinkView: {
+            title: string;
+            url: string;
+            /** @description Display name of the evidence source backing this claim. */
+            source: string;
+            /** Format: date-time */
+            publishedAt: string;
+        };
+        MatchDetail: {
+            slug: string;
+            round: string;
+            venue: string;
+            homeClub: components["schemas"]["ClubRef"];
+            awayClub: components["schemas"]["ClubRef"];
+            competition: components["schemas"]["CompetitionRef"];
+            /** Format: date-time */
+            kickoffAt: string | null;
+            kickoffState: components["schemas"]["KickoffState"];
+            broadcastState: components["schemas"]["AvailabilityState"];
+            lineupState: components["schemas"]["AvailabilityState"];
+            newsState: components["schemas"]["AvailabilityState"];
+            /**
+             * Format: date-time
+             * @description REQ-010: most recent time the platform attempted to refresh broadcast data, even if the attempt found nothing. Null when no attempt has been recorded yet.
+             */
+            broadcastLastAttemptAt: string | null;
+            /** Format: date-time */
+            lineupLastAttemptAt: string | null;
+            /** Format: date-time */
+            newsLastAttemptAt: string | null;
+            broadcasts: components["schemas"]["BroadcastView"][];
+            lineups: components["schemas"]["LineupView"][];
+            news: components["schemas"]["NewsLinkView"][];
+        };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        /** @description Club slug, e.g. flamengo. */
+        ClubSlug: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -67,6 +290,157 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    searchClubsAndMatches: {
+        parameters: {
+            query: {
+                /** @description Free-text search query (1-100 characters; longer input is truncated). */
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Search results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponse"];
+                };
+            };
+            /** @description Missing or invalid query parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Rate limit exceeded (SEC-001) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getClubDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Club slug, e.g. flamengo. */
+                slug: components["parameters"]["ClubSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Club detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubDetail"];
+                };
+            };
+            /** @description Club not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getClubMatches: {
+        parameters: {
+            query?: {
+                /** @description Agenda window. week = 7 days from the Brasília-local start of "today"; month = current calendar month in Brasília time; season = every match in the given season. Defaults to week. */
+                range?: components["schemas"]["AgendaRange"];
+                /** @description Four-digit season year. Defaults to the current calendar year. */
+                season?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Club slug, e.g. flamengo. */
+                slug: components["parameters"]["ClubSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Club match agenda */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClubMatchesResponse"];
+                };
+            };
+            /** @description Invalid range or season parameter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Club not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getMatchDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Match slug, e.g. flamengo-x-vasco. */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Match detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MatchDetail"];
+                };
+            };
+            /** @description Match not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
             };
         };
     };

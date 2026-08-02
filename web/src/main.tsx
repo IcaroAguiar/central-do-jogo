@@ -1,3 +1,4 @@
+import { registerSW } from "virtual:pwa-register";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./app/App";
@@ -13,3 +14,8 @@ createRoot(rootElement).render(
     <App />
   </StrictMode>,
 );
+
+// autoUpdate silently activates new service worker versions on the next
+// navigation (TASK-025); no user-facing "update available" prompt is
+// needed for this MVP's single-bundle app shell.
+registerSW({ immediate: true });
