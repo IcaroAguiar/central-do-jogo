@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
@@ -87,23 +88,16 @@ func detailFromDomain(club *domain.Club) *Detail {
 
 // MatchSummary is one match entry in a club's agenda.
 type MatchSummary struct {
-	Slug           string     `json:"slug"`
-	Round          string     `json:"round"`
-	Venue          string     `json:"venue"`
-	HomeClub       ClubRef    `json:"homeClub"`
-	AwayClub       ClubRef    `json:"awayClub"`
-	KickoffAt      *time.Time `json:"kickoffAt"`
-	KickoffState   string     `json:"kickoffState"`
-	BroadcastState string     `json:"broadcastState"`
-	LineupState    string     `json:"lineupState"`
-	NewsState      string     `json:"newsState"`
-}
-
-// ClubRef is a minimal club reference embedded in match summaries.
-type ClubRef struct {
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
+	Slug           string      `json:"slug"`
+	Round          string      `json:"round"`
+	Venue          string      `json:"venue"`
+	HomeClub       api.ClubRef `json:"homeClub"`
+	AwayClub       api.ClubRef `json:"awayClub"`
+	KickoffAt      *time.Time  `json:"kickoffAt"`
+	KickoffState   string      `json:"kickoffState"`
+	BroadcastState string      `json:"broadcastState"`
+	LineupState    string      `json:"lineupState"`
+	NewsState      string      `json:"newsState"`
 }
 
 // MatchesResponse is the JSON payload for GET /api/v1/clubs/{slug}/matches.
@@ -136,8 +130,8 @@ func (s *Service) GetMatches(ctx context.Context, slug string, rng Range, season
 			Slug:           m.Slug,
 			Round:          m.Round,
 			Venue:          m.Venue,
-			HomeClub:       ClubRef{Slug: m.HomeClub.Slug, Name: m.HomeClub.Name, ShortName: m.HomeClub.ShortName},
-			AwayClub:       ClubRef{Slug: m.AwayClub.Slug, Name: m.AwayClub.Name, ShortName: m.AwayClub.ShortName},
+			HomeClub:       api.ClubRefFromParts(m.HomeClub.Slug, m.HomeClub.Name, m.HomeClub.ShortName),
+			AwayClub:       api.ClubRefFromParts(m.AwayClub.Slug, m.AwayClub.Name, m.AwayClub.ShortName),
 			KickoffAt:      m.KickoffAt,
 			KickoffState:   string(m.KickoffState),
 			BroadcastState: string(m.BroadcastState),

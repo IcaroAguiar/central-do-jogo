@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
@@ -40,27 +41,20 @@ func NewService(clubs ClubSearcher, matches MatchSearcher) *Service {
 	return &Service{clubs: clubs, matches: matches}
 }
 
-// ClubResult is a search hit describing a club.
-type ClubResult struct {
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
-}
-
 // MatchResult is a search hit describing a match.
 type MatchResult struct {
-	Slug         string     `json:"slug"`
-	Round        string     `json:"round"`
-	HomeClub     ClubResult `json:"homeClub"`
-	AwayClub     ClubResult `json:"awayClub"`
-	KickoffAt    *time.Time `json:"kickoffAt"`
-	KickoffState string     `json:"kickoffState"`
+	Slug         string      `json:"slug"`
+	Round        string      `json:"round"`
+	HomeClub     api.ClubRef `json:"homeClub"`
+	AwayClub     api.ClubRef `json:"awayClub"`
+	KickoffAt    *time.Time  `json:"kickoffAt"`
+	KickoffState string      `json:"kickoffState"`
 }
 
 // Response is the JSON payload for a search request.
 type Response struct {
 	Query   string        `json:"query"`
-	Clubs   []ClubResult  `json:"clubs"`
+	Clubs   []api.ClubRef `json:"clubs"`
 	Matches []MatchResult `json:"matches"`
 }
 
@@ -78,18 +72,18 @@ func (s *Service) Search(ctx context.Context, query string) (Response, error) {
 
 	resp := Response{
 		Query:   query,
-		Clubs:   make([]ClubResult, 0, len(clubs)),
+		Clubs:   make([]api.ClubRef, 0, len(clubs)),
 		Matches: make([]MatchResult, 0, len(matches)),
 	}
 	for _, c := range clubs {
-		resp.Clubs = append(resp.Clubs, ClubResult{Slug: c.Slug, Name: c.Name, ShortName: c.ShortName})
+		resp.Clubs = append(resp.Clubs, api.ClubRefFromClub(c))
 	}
 	for _, m := range matches {
 		resp.Matches = append(resp.Matches, MatchResult{
 			Slug:         m.Slug,
 			Round:        m.Round,
-			HomeClub:     ClubResult{Slug: m.HomeClub.Slug, Name: m.HomeClub.Name, ShortName: m.HomeClub.ShortName},
-			AwayClub:     ClubResult{Slug: m.AwayClub.Slug, Name: m.AwayClub.Name, ShortName: m.AwayClub.ShortName},
+			HomeClub:     api.ClubRefFromParts(m.HomeClub.Slug, m.HomeClub.Name, m.HomeClub.ShortName),
+			AwayClub:     api.ClubRefFromParts(m.AwayClub.Slug, m.AwayClub.Name, m.AwayClub.ShortName),
 			KickoffAt:    m.KickoffAt,
 			KickoffState: string(m.KickoffState),
 		})

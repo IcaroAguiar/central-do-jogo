@@ -5,6 +5,7 @@ import { ApiRequestError, fetchClub, fetchClubMatches } from "../../api/client";
 import { useApiResource } from "../../api/useApiResource";
 import { formatKickoff } from "../../lib/datetime";
 import { readInitialData } from "../../lib/initialData";
+import { SSR_PAGE } from "../../lib/pages";
 import { LoadErrorPage } from "../../pages/LoadErrorPage";
 import { NotFoundPage } from "../../pages/NotFoundPage";
 import { usePreferences } from "../preferences/usePreferences";
@@ -19,7 +20,9 @@ interface ClubInitialData {
 
 export function ClubPage() {
   const { slug = "" } = useParams<{ slug: string }>();
-  const [initial] = useState(() => readInitialData<"club", ClubInitialData>("club"));
+  const [initial] = useState(() =>
+    readInitialData<typeof SSR_PAGE.club, ClubInitialData>(SSR_PAGE.club),
+  );
   const initialMatchesForSlug = initial?.club?.slug === slug ? initial.matches : undefined;
   const [range, setRange] = useState<AgendaRange>(initialMatchesForSlug?.range ?? "week");
   const prefs = usePreferences();

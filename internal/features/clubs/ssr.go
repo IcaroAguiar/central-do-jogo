@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/render"
 )
@@ -32,7 +33,7 @@ func NewHomeSSRHandler(svc *Service, renderer *render.Renderer, baseURL string) 
 				OGType:       "website",
 			},
 			Clubs:       clubs,
-			InitialData: map[string]any{"page": "home", "clubs": items},
+			InitialData: map[string]any{"page": api.PageHome, "clubs": items},
 		}
 		if err := renderer.RenderHome(w, page); err != nil {
 			logging.FromContext(r.Context()).Error("ssr home: render", slog.String("error", err.Error()))
@@ -66,7 +67,7 @@ func NewClubSSRHandler(svc *Service, renderer *render.Renderer, baseURL string, 
 					OGType:       "website",
 				},
 				NotFound:    true,
-				InitialData: map[string]any{"page": "club", "notFound": true},
+				InitialData: map[string]any{"page": api.PageClub, "notFound": true},
 			}
 			if err := renderer.RenderClub(w, http.StatusNotFound, page); err != nil {
 				logger.Error("ssr club: render not found", slog.String("error", err.Error()))
@@ -106,7 +107,7 @@ func NewClubSSRHandler(svc *Service, renderer *render.Renderer, baseURL string, 
 			},
 			Club:        render.ClubViewModel{Name: detail.Name, ShortName: detail.ShortName},
 			Matches:     matchLinks,
-			InitialData: map[string]any{"page": "club", "club": detail, "matches": matchesResp},
+			InitialData: map[string]any{"page": api.PageClub, "club": detail, "matches": matchesResp},
 		}
 		if err := renderer.RenderClub(w, http.StatusOK, page); err != nil {
 			logger.Error("ssr club: render", slog.String("error", err.Error()))

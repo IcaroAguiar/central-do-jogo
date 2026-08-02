@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/render"
 )
@@ -28,7 +29,7 @@ func NewSSRHandler(svc *Service, renderer *render.Renderer, baseURL string) http
 					OGType:       "website",
 				},
 				NotFound:    true,
-				InitialData: map[string]any{"page": "match", "notFound": true},
+				InitialData: map[string]any{"page": api.PageMatch, "notFound": true},
 			}
 			if err := renderer.RenderMatch(w, http.StatusNotFound, page); err != nil {
 				logger.Error("ssr match: render not found", slog.String("error", err.Error()))
@@ -44,7 +45,7 @@ func NewSSRHandler(svc *Service, renderer *render.Renderer, baseURL string) http
 				OGType:       "article",
 			},
 			Match:       toMatchViewModel(detail),
-			InitialData: map[string]any{"page": "match", "match": detail},
+			InitialData: map[string]any{"page": api.PageMatch, "match": detail},
 		}
 		if err := renderer.RenderMatch(w, http.StatusOK, page); err != nil {
 			logger.Error("ssr match: render", slog.String("error", err.Error()))

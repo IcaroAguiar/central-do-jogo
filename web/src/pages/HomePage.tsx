@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { SearchBox } from "../features/search/SearchBox";
 import { readInitialData } from "../lib/initialData";
+import { SSR_PAGE } from "../lib/pages";
 
 interface HomeClubLink {
   slug: string;
@@ -13,7 +14,9 @@ interface HomeInitialData {
 }
 
 export function HomePage() {
-  const [initial] = useState(() => readInitialData<"home", HomeInitialData>("home"));
+  const [initial] = useState(() =>
+    readInitialData<typeof SSR_PAGE.home, HomeInitialData>(SSR_PAGE.home),
+  );
   const clubs = initial?.clubs ?? [];
 
   return (

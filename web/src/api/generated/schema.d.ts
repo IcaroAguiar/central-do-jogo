@@ -147,11 +147,12 @@ export interface components {
             name: string;
             season: number;
         };
-        SearchClubResult: {
-            slug: string;
-            name: string;
-            shortName: string;
-        };
+        /**
+         * @description Discriminator for PAT-004 #initial-data payloads. Must stay aligned with internal/api page constants and web/src/lib/pages.ts.
+         * @enum {string}
+         */
+        SSRPage: "home" | "club" | "match";
+        SearchClubResult: components["schemas"]["ClubRef"];
         SearchMatchResult: {
             slug: string;
             round: string;

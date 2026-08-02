@@ -279,19 +279,17 @@ components:
           type: string
         season:
           type: integer
+    SSRPage:
+      type: string
+      description: >
+        Discriminator for PAT-004 #initial-data payloads. Must stay aligned with
+        internal/api page constants and web/src/lib/pages.ts.
+      enum:
+        - home
+        - club
+        - match
     SearchClubResult:
-      type: object
-      required:
-        - slug
-        - name
-        - shortName
-      properties:
-        slug:
-          type: string
-        name:
-          type: string
-        shortName:
-          type: string
+      $ref: "#/components/schemas/ClubRef"
     SearchMatchResult:
       type: object
       required:

@@ -7,7 +7,9 @@
  * subsequent client-side navigations always fetch through the API client.
  */
 
-type InitialDataEnvelope<TPage extends string, TData> = {
+import type { SSRPage } from "./pages";
+
+type InitialDataEnvelope<TPage extends SSRPage, TData> = {
   page: TPage;
 } & TData;
 
@@ -31,7 +33,7 @@ function readRaw(): Record<string, unknown> | null {
 
 /** Returns the parsed initial-data payload only when it matches `page`,
  * otherwise null (including once it has already been consumed). */
-export function readInitialData<TPage extends string, TData>(
+export function readInitialData<TPage extends SSRPage, TData>(
   page: TPage,
 ): InitialDataEnvelope<TPage, TData> | null {
   const raw = readRaw();

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
@@ -43,20 +44,6 @@ type Service struct {
 // NewService creates a matches service.
 func NewService(matches MatchGetter, broadcasts BroadcastLister, lineups LineupLister, news NewsLister) *Service {
 	return &Service{matches: matches, broadcasts: broadcasts, lineups: lineups, news: news}
-}
-
-// ClubRef is a minimal club reference embedded in a match detail.
-type ClubRef struct {
-	Slug      string `json:"slug"`
-	Name      string `json:"name"`
-	ShortName string `json:"shortName"`
-}
-
-// CompetitionRef is a minimal competition reference embedded in a match detail.
-type CompetitionRef struct {
-	Slug   string `json:"slug"`
-	Name   string `json:"name"`
-	Season int    `json:"season"`
 }
 
 // BroadcastView is one known broadcast for a match (REQ-007).
@@ -98,17 +85,17 @@ type NewsLinkView struct {
 
 // Detail is the JSON payload for GET /api/v1/matches/{slug}.
 type Detail struct {
-	Slug           string         `json:"slug"`
-	Round          string         `json:"round"`
-	Venue          string         `json:"venue"`
-	HomeClub       ClubRef        `json:"homeClub"`
-	AwayClub       ClubRef        `json:"awayClub"`
-	Competition    CompetitionRef `json:"competition"`
-	KickoffAt      *time.Time     `json:"kickoffAt"`
-	KickoffState   string         `json:"kickoffState"`
-	BroadcastState string         `json:"broadcastState"`
-	LineupState    string         `json:"lineupState"`
-	NewsState      string         `json:"newsState"`
+	Slug           string             `json:"slug"`
+	Round          string             `json:"round"`
+	Venue          string             `json:"venue"`
+	HomeClub       api.ClubRef        `json:"homeClub"`
+	AwayClub       api.ClubRef        `json:"awayClub"`
+	Competition    api.CompetitionRef `json:"competition"`
+	KickoffAt      *time.Time         `json:"kickoffAt"`
+	KickoffState   string             `json:"kickoffState"`
+	BroadcastState string             `json:"broadcastState"`
+	LineupState    string             `json:"lineupState"`
+	NewsState      string             `json:"newsState"`
 	// *LastAttemptAt surface the most recent refresh attempt even when it
 	// found nothing, per REQ-010 ("a ultima tentativa fica visivel").
 	BroadcastLastAttemptAt *time.Time      `json:"broadcastLastAttemptAt"`
@@ -146,9 +133,9 @@ func (s *Service) GetDetail(ctx context.Context, slug string) (*Detail, error) {
 		Slug:                   rec.Slug,
 		Round:                  rec.Round,
 		Venue:                  rec.Venue,
-		HomeClub:               ClubRef{Slug: rec.HomeClub.Slug, Name: rec.HomeClub.Name, ShortName: rec.HomeClub.ShortName},
-		AwayClub:               ClubRef{Slug: rec.AwayClub.Slug, Name: rec.AwayClub.Name, ShortName: rec.AwayClub.ShortName},
-		Competition:            CompetitionRef{Slug: rec.Competition.Slug, Name: rec.Competition.Name, Season: rec.Competition.Season},
+		HomeClub:               api.ClubRefFromParts(rec.HomeClub.Slug, rec.HomeClub.Name, rec.HomeClub.ShortName),
+		AwayClub:               api.ClubRefFromParts(rec.AwayClub.Slug, rec.AwayClub.Name, rec.AwayClub.ShortName),
+		Competition:            api.CompetitionRef{Slug: rec.Competition.Slug, Name: rec.Competition.Name, Season: rec.Competition.Season},
 		KickoffAt:              rec.KickoffAt,
 		KickoffState:           string(rec.KickoffState),
 		BroadcastState:         string(rec.BroadcastState),

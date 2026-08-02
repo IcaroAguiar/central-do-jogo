@@ -6,6 +6,7 @@ import { useApiResource } from "../../api/useApiResource";
 import { availabilityLabel, needsIncompleteDisclaimer } from "../../lib/availability";
 import { formatKickoffWithLabel, formatTimestamp } from "../../lib/datetime";
 import { readInitialData } from "../../lib/initialData";
+import { SSR_PAGE } from "../../lib/pages";
 import { LoadErrorPage } from "../../pages/LoadErrorPage";
 import { NotFoundPage } from "../../pages/NotFoundPage";
 import { ShareButton } from "../sharing/ShareButton";
@@ -18,7 +19,9 @@ interface MatchInitialData {
 
 export function MatchPage() {
   const { slug = "" } = useParams<{ slug: string }>();
-  const [initial] = useState(() => readInitialData<"match", MatchInitialData>("match"));
+  const [initial] = useState(() =>
+    readInitialData<typeof SSR_PAGE.match, MatchInitialData>(SSR_PAGE.match),
+  );
 
   const match = useApiResource(
     () => fetchMatch(slug),
