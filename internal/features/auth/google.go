@@ -82,7 +82,7 @@ func (p *GoogleProvider) Exchange(ctx context.Context, code string) (Identity, e
 	if err != nil {
 		return Identity{}, fmt.Errorf("google token request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
 		return Identity{}, fmt.Errorf("read google token response: %w", err)
@@ -113,7 +113,7 @@ func (p *GoogleProvider) Exchange(ctx context.Context, code string) (Identity, e
 	if err != nil {
 		return Identity{}, fmt.Errorf("google userinfo request: %w", err)
 	}
-	defer uresp.Body.Close()
+	defer func() { _ = uresp.Body.Close() }()
 	ubody, err := io.ReadAll(io.LimitReader(uresp.Body, 1<<20))
 	if err != nil {
 		return Identity{}, fmt.Errorf("read google userinfo: %w", err)

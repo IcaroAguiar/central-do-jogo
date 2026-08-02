@@ -93,6 +93,24 @@ func TestLoadAuthEnabled(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsAuthWithoutPublicBaseURL(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
+	t.Setenv("PUBLIC_BASE_URL", "")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "client-id")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_SECRET", "client-secret")
+	t.Setenv("SESSION_COOKIE_SECRET", "0123456789abcdef0123456789abcdef")
+	t.Setenv("GOOGLE_OAUTH_REDIRECT_URL", "https://example.org/api/v1/auth/google/callback")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error when PUBLIC_BASE_URL is empty with auth enabled")
+	}
+	if !strings.Contains(err.Error(), "PUBLIC_BASE_URL") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestLoadRejectsIncompleteAuth(t *testing.T) {
 	t.Setenv("DATABASE_URL", testDatabaseURL)
 	clearAuthEnv(t)

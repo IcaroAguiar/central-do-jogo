@@ -83,6 +83,8 @@ To enable:
    promotes a user unless the email is on this list.
 5. Serve over HTTPS in shared environments so Secure cookies apply
    (`AUTH_COOKIE_SECURE` defaults from `https://` `PUBLIC_BASE_URL`).
+   `PUBLIC_BASE_URL` is **required** whenever OAuth is enabled so logout
+   CSRF checks have a bind target.
 
 OAuth start/callback share a separate in-process rate limit
 (`AUTH_RATE_LIMIT_*`). Logout requires a matching `Origin`/`Referer` when

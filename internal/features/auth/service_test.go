@@ -113,6 +113,10 @@ func testCfg(emails ...string) auth.Config {
 	}
 }
 
+func stateFromAuthURL(authURL string) string {
+	return authURL[strings.LastIndex(authURL, "state=")+6:]
+}
+
 func TestFirstLoginNeverPromotesWithoutAllowlist(t *testing.T) {
 	t.Parallel()
 	mem := newMem()
@@ -120,21 +124,16 @@ func TestFirstLoginNeverPromotesWithoutAllowlist(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "sub-1", Email: "fan@example.com", EmailVerified: true, DisplayName: "Fan",
 	}}, testCfg(), func() time.Time { return time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC) })
 
-	w := httptest.NewRecorder()
-	r := httptest.NewRequest(http.MethodGet, "/callback?code=x&state=abc", nil)
-	startURL, err := svc.StartURL(w)
+	start, err := svc.StartLogin()
 	if err != nil {
-		t.Fatalf("StartURL: %v", err)
+		t.Fatalf("StartLogin: %v", err)
 	}
-	state := startURL[strings.LastIndex(startURL, "state=")+6:]
-	r.AddCookie(w.Result().Cookies()[0])
-
-	user, err := svc.CompleteLogin(context.Background(), w, r, "code", state)
+	user, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
 	if err != nil {
 		t.Fatalf("CompleteLogin: %v", err)
 	}
-	if user.Role != domain.RoleUser {
-		t.Fatalf("role = %q, want user", user.Role)
+	if user.User.Role != domain.RoleUser {
+		t.Fatalf("role = %q, want user", user.User.Role)
 	}
 }
 
@@ -146,46 +145,30 @@ func TestAllowlistGrantsMaintainerOnLogin(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "sub-2", Email: "Owner@Example.com", EmailVerified: true,
 	}}, testCfg("owner@example.com"), func() time.Time { return now })
 
-	sw := httptest.NewRecorder()
-	startURL, err := svc.StartURL(sw)
+	start, err := svc.StartLogin()
 	if err != nil {
-		t.Fatalf("StartURL: %v", err)
+		t.Fatalf("StartLogin: %v", err)
 	}
-	state := startURL[strings.LastIndex(startURL, "state=")+6:]
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(sw.Result().Cookies()[0])
-
-	user, err := svc.CompleteLogin(context.Background(), rw, req, "code", state)
+	result, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
 	if err != nil {
 		t.Fatalf("CompleteLogin: %v", err)
 	}
-	if user.Role != domain.RoleMaintainer {
-		t.Fatalf("role = %q, want maintainer", user.Role)
+	if result.User.Role != domain.RoleMaintainer {
+		t.Fatalf("role = %q, want maintainer", result.User.Role)
 	}
-	if user.Email != "owner@example.com" {
-		t.Fatalf("email = %q", user.Email)
+	if result.User.Email != "owner@example.com" {
+		t.Fatalf("email = %q", result.User.Email)
 	}
-
-	cookies := rw.Result().Cookies()
-	var sessionCookie *http.Cookie
-	for _, c := range cookies {
-		if c.Name == "cdj_session" {
-			sessionCookie = c
-		}
+	if result.SessionToken == "" {
+		t.Fatal("missing session token")
 	}
-	if sessionCookie == nil || sessionCookie.Value == "" {
-		t.Fatal("missing session cookie")
-	}
-	sum := sha256.Sum256([]byte(sessionCookie.Value))
+	sum := sha256.Sum256([]byte(result.SessionToken))
 	hash := hex.EncodeToString(sum[:])
 	if _, ok := mem.sessions[hash]; !ok {
 		t.Fatal("session hash not stored")
 	}
 
-	meReq := httptest.NewRequest(http.MethodGet, "/me", nil)
-	meReq.AddCookie(sessionCookie)
-	got, err := svc.CurrentUser(context.Background(), meReq)
+	got, err := svc.CurrentUser(context.Background(), result.SessionToken)
 	if err != nil || got == nil || got.Role != domain.RoleMaintainer {
 		t.Fatalf("CurrentUser = %+v err=%v", got, err)
 	}
@@ -197,11 +180,8 @@ func TestInvalidStateRejected(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "x", Email: "a@b.co", EmailVerified: true,
 	}}, testCfg(), time.Now)
 
-	w := httptest.NewRecorder()
-	_, _ = svc.StartURL(w)
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(w.Result().Cookies()[0])
-	_, err := svc.CompleteLogin(context.Background(), httptest.NewRecorder(), req, "code", "wrong-state")
+	start, _ := svc.StartLogin()
+	_, err := svc.CompleteLogin(context.Background(), "code", "wrong-state", start.SignedStateCookie)
 	if err != auth.ErrInvalidState {
 		t.Fatalf("err = %v, want ErrInvalidState", err)
 	}
@@ -213,12 +193,8 @@ func TestUnverifiedEmailRejected(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "x", Email: "a@b.co", EmailVerified: false,
 	}}, testCfg(), time.Now)
 
-	sw := httptest.NewRecorder()
-	startURL, _ := svc.StartURL(sw)
-	state := startURL[strings.LastIndex(startURL, "state=")+6:]
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(sw.Result().Cookies()[0])
-	_, err := svc.CompleteLogin(context.Background(), httptest.NewRecorder(), req, "code", state)
+	start, _ := svc.StartLogin()
+	_, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
 	if err != auth.ErrEmailUnverified {
 		t.Fatalf("err = %v, want ErrEmailUnverified", err)
 	}
@@ -233,25 +209,13 @@ func TestAllowlistDemotesActiveSession(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "sub-demote", Email: "owner@example.com", EmailVerified: true,
 	}}, cfg, func() time.Time { return now })
 
-	sw := httptest.NewRecorder()
-	startURL, _ := svc.StartURL(sw)
-	state := startURL[strings.LastIndex(startURL, "state=")+6:]
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(sw.Result().Cookies()[0])
-	if _, err := svc.CompleteLogin(context.Background(), rw, req, "code", state); err != nil {
+	start, _ := svc.StartLogin()
+	result, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
+	if err != nil {
 		t.Fatal(err)
 	}
-	var sessionCookie *http.Cookie
-	for _, c := range rw.Result().Cookies() {
-		if c.Name == "cdj_session" {
-			sessionCookie = c
-		}
-	}
 	delete(cfg.MaintainerEmails, "owner@example.com")
-	meReq := httptest.NewRequest(http.MethodGet, "/me", nil)
-	meReq.AddCookie(sessionCookie)
-	got, err := svc.CurrentUser(context.Background(), meReq)
+	got, err := svc.CurrentUser(context.Background(), result.SessionToken)
 	if err != nil || got == nil {
 		t.Fatalf("CurrentUser = %+v err=%v", got, err)
 	}
@@ -268,31 +232,15 @@ func TestLogoutRevokesSession(t *testing.T) {
 		Provider: auth.ProviderGoogle, Subject: "sub-3", Email: "u@example.com", EmailVerified: true,
 	}}, testCfg(), func() time.Time { return now })
 
-	sw := httptest.NewRecorder()
-	startURL, _ := svc.StartURL(sw)
-	state := startURL[strings.LastIndex(startURL, "state=")+6:]
-	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	req.AddCookie(sw.Result().Cookies()[0])
-	_, err := svc.CompleteLogin(context.Background(), rw, req, "code", state)
+	start, _ := svc.StartLogin()
+	result, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sessionCookie *http.Cookie
-	for _, c := range rw.Result().Cookies() {
-		if c.Name == "cdj_session" {
-			sessionCookie = c
-		}
-	}
-	logoutW := httptest.NewRecorder()
-	logoutR := httptest.NewRequest(http.MethodPost, "/logout", nil)
-	logoutR.AddCookie(sessionCookie)
-	if err := svc.Logout(context.Background(), logoutW, logoutR); err != nil {
+	if err := svc.Logout(context.Background(), result.SessionToken); err != nil {
 		t.Fatal(err)
 	}
-	meReq := httptest.NewRequest(http.MethodGet, "/me", nil)
-	meReq.AddCookie(sessionCookie)
-	got, err := svc.CurrentUser(context.Background(), meReq)
+	got, err := svc.CurrentUser(context.Background(), result.SessionToken)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,5 +283,34 @@ func TestHandlersMeAnonymousWhenDisabled(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), `"authEnabled":false`) {
 		t.Fatalf("body = %s", w.Body.String())
+	}
+}
+
+func TestLogoutRejectsMissingOriginWhenBaseConfigured(t *testing.T) {
+	t.Parallel()
+	svc := auth.NewService(newMem(), &fakeProvider{identity: auth.Identity{
+		Provider: auth.ProviderGoogle, Subject: "x", Email: "a@b.co", EmailVerified: true,
+	}}, testCfg(), time.Now)
+	h := auth.NewHandlers(svc)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	w := httptest.NewRecorder()
+	h.Logout().ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", w.Code)
+	}
+}
+
+func TestLogoutRejectsForeignOrigin(t *testing.T) {
+	t.Parallel()
+	svc := auth.NewService(newMem(), &fakeProvider{identity: auth.Identity{
+		Provider: auth.ProviderGoogle, Subject: "x", Email: "a@b.co", EmailVerified: true,
+	}}, testCfg(), time.Now)
+	h := auth.NewHandlers(svc)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	req.Header.Set("Origin", "https://evil.example")
+	w := httptest.NewRecorder()
+	h.Logout().ServeHTTP(w, req)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", w.Code)
 	}
 }

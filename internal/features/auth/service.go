@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -22,8 +21,10 @@ import (
 const (
 	ProviderGoogle = "google"
 
-	sessionCookieName = "cdj_session"
-	oauthStateCookie  = "cdj_oauth_state"
+	// SessionCookieName is the HttpOnly cookie carrying the opaque session token.
+	SessionCookieName = "cdj_session"
+	// OAuthStateCookieName carries the signed OAuth CSRF state.
+	OAuthStateCookieName = "cdj_oauth_state"
 
 	oauthStateTTL = 10 * time.Minute
 )
@@ -73,7 +74,8 @@ type Config struct {
 	PostLoginRedirect string
 }
 
-// Service orchestrates OAuth login and session lifecycle.
+// Service orchestrates OAuth login and session lifecycle without owning HTTP
+// transport (cookies stay in handlers).
 type Service struct {
 	users    UserRepository
 	provider Provider
@@ -94,54 +96,72 @@ func (s *Service) Enabled() bool {
 	return s.cfg.Enabled && s.provider != nil
 }
 
-// StartURL builds the IdP authorization URL and sets a signed state cookie.
-func (s *Service) StartURL(w http.ResponseWriter) (string, error) {
+// CookieSecure reports whether auth cookies must set the Secure flag.
+func (s *Service) CookieSecure() bool { return s.cfg.CookieSecure }
+
+// PublicBaseURL returns the configured public origin used for CSRF checks.
+func (s *Service) PublicBaseURL() string { return s.cfg.PublicBaseURL }
+
+// SessionTTL returns how long a new session cookie should live.
+func (s *Service) SessionTTL() time.Duration { return s.cfg.SessionTTL }
+
+// OAuthStateTTL returns the OAuth state cookie lifetime.
+func (s *Service) OAuthStateTTL() time.Duration { return oauthStateTTL }
+
+// StartLoginResult is the transport-agnostic output of StartLogin.
+type StartLoginResult struct {
+	AuthURL           string
+	SignedStateCookie string
+}
+
+// StartLogin builds the IdP authorization URL and a signed OAuth state value.
+func (s *Service) StartLogin() (StartLoginResult, error) {
 	if !s.Enabled() {
-		return "", ErrAuthDisabled
+		return StartLoginResult{}, ErrAuthDisabled
 	}
 	state, err := randomToken(24)
 	if err != nil {
-		return "", err
+		return StartLoginResult{}, err
 	}
 	signed, err := s.signState(state)
 	if err != nil {
-		return "", err
+		return StartLoginResult{}, err
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     oauthStateCookie,
-		Value:    signed,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.cfg.CookieSecure,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   int(oauthStateTTL.Seconds()),
-	})
-	return s.provider.AuthCodeURL(state), nil
+	return StartLoginResult{
+		AuthURL:           s.provider.AuthCodeURL(state),
+		SignedStateCookie: signed,
+	}, nil
+}
+
+// LoginResult is the transport-agnostic output of CompleteLogin.
+type LoginResult struct {
+	User         *domain.User
+	SessionToken string
+	ExpiresAt    time.Time
 }
 
 // CompleteLogin validates state, exchanges the code, upserts the user with
-// allowlist-derived role, and issues a session cookie.
-func (s *Service) CompleteLogin(ctx context.Context, w http.ResponseWriter, r *http.Request, code, state string) (*domain.User, error) {
+// allowlist-derived role, and creates a server-side session.
+func (s *Service) CompleteLogin(ctx context.Context, code, state, signedStateCookie string) (LoginResult, error) {
 	if !s.Enabled() {
-		return nil, ErrAuthDisabled
+		return LoginResult{}, ErrAuthDisabled
 	}
-	if err := s.verifyState(r, state); err != nil {
-		return nil, err
+	if err := s.verifyState(signedStateCookie, state); err != nil {
+		return LoginResult{}, err
 	}
-	clearCookie(w, oauthStateCookie, s.cfg.CookieSecure)
 
 	identity, err := s.provider.Exchange(ctx, code)
 	if err != nil {
-		return nil, fmt.Errorf("exchange code: %w", err)
+		return LoginResult{}, fmt.Errorf("exchange code: %w", err)
 	}
 	if !identity.EmailVerified || strings.TrimSpace(identity.Email) == "" {
-		return nil, ErrEmailUnverified
+		return LoginResult{}, ErrEmailUnverified
 	}
 
 	now := s.now().UTC()
 	userID, err := domain.NewID("usr_")
 	if err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
 	role := domain.RoleUser
 	if s.isMaintainer(identity.Email) {
@@ -156,52 +176,39 @@ func (s *Service) CompleteLogin(ctx context.Context, w http.ResponseWriter, r *h
 		Role:            role,
 	}, now)
 	if err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
 
 	rawToken, err := randomToken(32)
 	if err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
 	sessID, err := domain.NewID("ses_")
 	if err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
+	expires := now.Add(s.cfg.SessionTTL)
 	sess := domain.Session{
 		ID:        sessID,
 		UserID:    user.ID,
 		TokenHash: hashToken(rawToken),
-		ExpiresAt: now.Add(s.cfg.SessionTTL),
+		ExpiresAt: expires,
 		CreatedAt: now,
 	}
 	if err := s.users.CreateSession(ctx, sess); err != nil {
-		return nil, err
+		return LoginResult{}, err
 	}
-	http.SetCookie(w, &http.Cookie{
-		Name:     sessionCookieName,
-		Value:    rawToken,
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   s.cfg.CookieSecure,
-		SameSite: http.SameSiteLaxMode,
-		Expires:  sess.ExpiresAt,
-		MaxAge:   int(s.cfg.SessionTTL.Seconds()),
-	})
-	return user, nil
+	return LoginResult{User: user, SessionToken: rawToken, ExpiresAt: expires}, nil
 }
 
-// CurrentUser resolves the session cookie into a user, or nil when anonymous.
+// CurrentUser resolves a raw session token into a user, or nil when anonymous.
 // Effective maintainer status is recomputed from the allowlist on every read
 // so removals take effect without waiting for re-login (REQ-018).
-func (s *Service) CurrentUser(ctx context.Context, r *http.Request) (*domain.User, error) {
-	if !s.Enabled() {
+func (s *Service) CurrentUser(ctx context.Context, sessionToken string) (*domain.User, error) {
+	if !s.Enabled() || sessionToken == "" {
 		return nil, nil
 	}
-	c, err := r.Cookie(sessionCookieName)
-	if err != nil || c.Value == "" {
-		return nil, nil
-	}
-	sess, err := s.users.GetSessionByTokenHash(ctx, hashToken(c.Value), s.now().UTC())
+	sess, err := s.users.GetSessionByTokenHash(ctx, hashToken(sessionToken), s.now().UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -220,17 +227,12 @@ func (s *Service) CurrentUser(ctx context.Context, r *http.Request) (*domain.Use
 	return user, nil
 }
 
-// Logout revokes the current session cookie when present.
-func (s *Service) Logout(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-	var token string
-	if c, err := r.Cookie(sessionCookieName); err == nil {
-		token = c.Value
-	}
-	clearCookie(w, sessionCookieName, s.cfg.CookieSecure)
-	if !s.Enabled() || token == "" {
+// Logout revokes the session identified by the raw token when present.
+func (s *Service) Logout(ctx context.Context, sessionToken string) error {
+	if !s.Enabled() || sessionToken == "" {
 		return nil
 	}
-	return s.users.RevokeSession(ctx, hashToken(token), s.now().UTC())
+	return s.users.RevokeSession(ctx, hashToken(sessionToken), s.now().UTC())
 }
 
 // PostLoginRedirect returns the safe relative path after OAuth success.
@@ -255,12 +257,11 @@ func (s *Service) signState(state string) (string, error) {
 	return base64.RawURLEncoding.EncodeToString([]byte(payload + "." + sig)), nil
 }
 
-func (s *Service) verifyState(r *http.Request, state string) error {
-	c, err := r.Cookie(oauthStateCookie)
-	if err != nil || c.Value == "" {
+func (s *Service) verifyState(signedCookie, state string) error {
+	if signedCookie == "" {
 		return ErrInvalidState
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(c.Value)
+	raw, err := base64.RawURLEncoding.DecodeString(signedCookie)
 	if err != nil {
 		return ErrInvalidState
 	}
@@ -307,18 +308,6 @@ func randomToken(n int) (string, error) {
 		return "", fmt.Errorf("random token: %w", err)
 	}
 	return hex.EncodeToString(b), nil
-}
-
-func clearCookie(w http.ResponseWriter, name string, secure bool) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     name,
-		Value:    "",
-		Path:     "/",
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: http.SameSiteLaxMode,
-		MaxAge:   -1,
-	})
 }
 
 // SafeRelativePath accepts only root-relative paths without scheme/host tricks.

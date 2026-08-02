@@ -177,10 +177,10 @@ func loadAuth(cfg *Config) error {
 		return fmt.Errorf("SESSION_COOKIE_SECRET must be at least 32 characters")
 	}
 	if allOAuth {
+		if cfg.PublicBaseURL == "" {
+			return fmt.Errorf("PUBLIC_BASE_URL is required when Google OAuth is enabled (CSRF origin binding)")
+		}
 		if cfg.GoogleOAuthRedirectURL == "" {
-			if cfg.PublicBaseURL == "" {
-				return fmt.Errorf("GOOGLE_OAUTH_REDIRECT_URL is required when PUBLIC_BASE_URL is empty")
-			}
 			cfg.GoogleOAuthRedirectURL = cfg.PublicBaseURL + "/api/v1/auth/google/callback"
 		}
 		cfg.AuthEnabled = true

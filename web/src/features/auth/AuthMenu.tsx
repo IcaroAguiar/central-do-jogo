@@ -1,27 +1,16 @@
 import { useEffect, useState } from "react";
-
-type AuthMe = {
-  authenticated: boolean;
-  authEnabled: boolean;
-  email?: string;
-  displayName?: string;
-  role?: "user" | "maintainer";
-};
+import { type AuthMeResponse, fetchAuthMe, logoutAuth } from "../../api/client";
 
 /** Compact login/logout control for the app header (TASK-027). */
 export function AuthMenu() {
-  const [me, setMe] = useState<AuthMe | null>(null);
+  const [me, setMe] = useState<AuthMeResponse | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/v1/auth/me", { credentials: "same-origin" });
-        if (!res.ok) {
-          return;
-        }
-        const body = (await res.json()) as AuthMe;
+        const body = await fetchAuthMe();
         if (!cancelled) {
           setMe(body);
         }
@@ -49,11 +38,7 @@ export function AuthMenu() {
   async function logout() {
     setBusy(true);
     try {
-      await fetch("/api/v1/auth/logout", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { Origin: window.location.origin },
-      });
+      await logoutAuth();
       setMe({ authenticated: false, authEnabled: true });
     } finally {
       setBusy(false);
