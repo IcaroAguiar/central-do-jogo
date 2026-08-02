@@ -1,16 +1,26 @@
 openapi: 3.1.0
 info:
   title: Central do Jogo Internal API
-  version: 0.1.0
+  version: 0.3.0
   description: >
     Internal REST contract for the Central do Jogo MVP.
-    No third-party compatibility SLA is offered.
+    No third-party compatibility SLA is offered. Phase 3 adds the public
+    read-only journeys: search, club detail/agenda, and match detail.
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
 servers:
   - url: /
 security: []
+tags:
+  - name: platform
+    description: Operational endpoints such as liveness probes.
+  - name: search
+    description: Free-text search across clubs and matches (REQ-005).
+  - name: clubs
+    description: Club detail and match agenda journeys (REQ-002, REQ-004).
+  - name: matches
+    description: Match detail with broadcasts, lineups, and news (REQ-006..REQ-010).
 paths:
   /healthz:
     get:
@@ -28,7 +38,145 @@ paths:
                 $ref: "#/components/schemas/HealthResponse"
         "4XX":
           description: Client error while probing health
+  /api/v1/search:
+    get:
+      operationId: searchClubsAndMatches
+      summary: Search clubs and matches by free-text query (REQ-005)
+      description: >
+        Rate limited per client IP (SEC-001). Returns up to 10 club hits and
+        10 match hits ordered by relevance.
+      tags:
+        - search
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Free-text search query (1-100 characters; longer input is truncated).
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+        "400":
+          description: Missing or invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded (SEC-001)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/clubs/{slug}:
+    get:
+      operationId: getClubDetail
+      summary: Club detail (REQ-002)
+      tags:
+        - clubs
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ClubSlug"
+      responses:
+        "200":
+          description: Club detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClubDetail"
+        "404":
+          description: Club not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/clubs/{slug}/matches:
+    get:
+      operationId: getClubMatches
+      summary: Club match agenda (REQ-004)
+      tags:
+        - clubs
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ClubSlug"
+        - name: range
+          in: query
+          required: false
+          description: >
+            Agenda window. week = 7 days from the Brasília-local start of
+            "today"; month = current calendar month in Brasília time; season
+            = every match in the given season. Defaults to week.
+          schema:
+            $ref: "#/components/schemas/AgendaRange"
+        - name: season
+          in: query
+          required: false
+          description: Four-digit season year. Defaults to the current calendar year.
+          schema:
+            type: integer
+            minimum: 1900
+      responses:
+        "200":
+          description: Club match agenda
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClubMatchesResponse"
+        "400":
+          description: Invalid range or season parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Club not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/matches/{slug}:
+    get:
+      operationId: getMatchDetail
+      summary: Match detail with broadcasts, lineups, and news (REQ-006..REQ-010)
+      tags:
+        - matches
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          description: Match slug, e.g. flamengo-x-vasco.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Match detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchDetail"
+        "404":
+          description: Match not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
+  parameters:
+    ClubSlug:
+      name: slug
+      in: path
+      required: true
+      description: Club slug, e.g. flamengo.
+      schema:
+        type: string
   schemas:
     HealthResponse:
       type: object
@@ -44,3 +192,384 @@ components:
           type: string
           format: date-time
           description: UTC timestamp of the health check.
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable error code, e.g. club_not_found.
+            message:
+              type: string
+              description: Human-readable error message.
+    AgendaRange:
+      type: string
+      enum:
+        - week
+        - month
+        - season
+    KickoffState:
+      type: string
+      description: Whether a kickoff instant is known and stable.
+      enum:
+        - published
+        - indefinite
+        - changed
+    AvailabilityState:
+      type: string
+      description: >
+        REQ-010 gap state for a match-scoped data surface (broadcast, lineup,
+        or news). Always present so the UI can render an explicit state
+        instead of silently omitting data.
+      enum:
+        - available
+        - awaiting_publication
+        - not_found
+        - divergent
+        - no_coverage
+    AccessType:
+      type: string
+      description: Whether a broadcast requires a subscription.
+      enum:
+        - free
+        - subscription
+        - unknown
+    ConfidenceLevel:
+      type: string
+      description: Deterministic confidence band for a broadcast claim.
+      enum:
+        - high
+        - medium
+        - low
+    LineupSide:
+      type: string
+      enum:
+        - home
+        - away
+    ClubRef:
+      type: object
+      required:
+        - slug
+        - name
+        - shortName
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        shortName:
+          type: string
+    CompetitionRef:
+      type: object
+      required:
+        - slug
+        - name
+        - season
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        season:
+          type: integer
+    SearchClubResult:
+      type: object
+      required:
+        - slug
+        - name
+        - shortName
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        shortName:
+          type: string
+    SearchMatchResult:
+      type: object
+      required:
+        - slug
+        - round
+        - homeClub
+        - awayClub
+        - kickoffAt
+        - kickoffState
+      properties:
+        slug:
+          type: string
+        round:
+          type: string
+        homeClub:
+          $ref: "#/components/schemas/ClubRef"
+        awayClub:
+          $ref: "#/components/schemas/ClubRef"
+        kickoffAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: UTC kickoff instant; null when kickoffState is indefinite.
+        kickoffState:
+          $ref: "#/components/schemas/KickoffState"
+    SearchResponse:
+      type: object
+      required:
+        - query
+        - clubs
+        - matches
+      properties:
+        query:
+          type: string
+        clubs:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/SearchClubResult"
+        matches:
+          type: array
+          maxItems: 10
+          items:
+            $ref: "#/components/schemas/SearchMatchResult"
+    ClubDetail:
+      type: object
+      required:
+        - slug
+        - name
+        - shortName
+        - aliases
+      properties:
+        slug:
+          type: string
+        name:
+          type: string
+        shortName:
+          type: string
+        aliases:
+          type: array
+          items:
+            type: string
+    ClubMatchSummary:
+      type: object
+      required:
+        - slug
+        - round
+        - venue
+        - homeClub
+        - awayClub
+        - kickoffAt
+        - kickoffState
+        - broadcastState
+        - lineupState
+        - newsState
+      properties:
+        slug:
+          type: string
+        round:
+          type: string
+        venue:
+          type: string
+        homeClub:
+          $ref: "#/components/schemas/ClubRef"
+        awayClub:
+          $ref: "#/components/schemas/ClubRef"
+        kickoffAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        kickoffState:
+          $ref: "#/components/schemas/KickoffState"
+        broadcastState:
+          $ref: "#/components/schemas/AvailabilityState"
+        lineupState:
+          $ref: "#/components/schemas/AvailabilityState"
+        newsState:
+          $ref: "#/components/schemas/AvailabilityState"
+    ClubMatchesResponse:
+      type: object
+      required:
+        - range
+        - season
+        - matches
+      properties:
+        range:
+          $ref: "#/components/schemas/AgendaRange"
+        season:
+          type: integer
+        matches:
+          type: array
+          items:
+            $ref: "#/components/schemas/ClubMatchSummary"
+    BroadcastView:
+      type: object
+      required:
+        - channel
+        - platform
+        - access
+        - region
+        - officialUrl
+        - confidence
+        - verifiedAt
+        - source
+      properties:
+        channel:
+          type: string
+        platform:
+          type: string
+        access:
+          $ref: "#/components/schemas/AccessType"
+        region:
+          type: string
+        officialUrl:
+          type: string
+        confidence:
+          $ref: "#/components/schemas/ConfidenceLevel"
+        verifiedAt:
+          type: string
+          format: date-time
+        source:
+          type: string
+          description: Display name of the evidence source backing this claim.
+    LineupPlayerView:
+      type: object
+      required:
+        - shirtNumber
+        - name
+        - isStarter
+      properties:
+        shirtNumber:
+          type: string
+        name:
+          type: string
+        isStarter:
+          type: boolean
+    LineupView:
+      type: object
+      required:
+        - side
+        - formation
+        - coach
+        - players
+        - official
+        - publishedAt
+      properties:
+        side:
+          $ref: "#/components/schemas/LineupSide"
+        formation:
+          type: string
+        coach:
+          type: string
+        players:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineupPlayerView"
+        official:
+          type: boolean
+        publishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+    NewsLinkView:
+      type: object
+      required:
+        - title
+        - url
+        - source
+        - publishedAt
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+        source:
+          type: string
+          description: Display name of the evidence source backing this claim.
+        publishedAt:
+          type: string
+          format: date-time
+    MatchDetail:
+      type: object
+      required:
+        - slug
+        - round
+        - venue
+        - homeClub
+        - awayClub
+        - competition
+        - kickoffAt
+        - kickoffState
+        - broadcastState
+        - lineupState
+        - newsState
+        - broadcastLastAttemptAt
+        - lineupLastAttemptAt
+        - newsLastAttemptAt
+        - broadcasts
+        - lineups
+        - news
+      properties:
+        slug:
+          type: string
+        round:
+          type: string
+        venue:
+          type: string
+        homeClub:
+          $ref: "#/components/schemas/ClubRef"
+        awayClub:
+          $ref: "#/components/schemas/ClubRef"
+        competition:
+          $ref: "#/components/schemas/CompetitionRef"
+        kickoffAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        kickoffState:
+          $ref: "#/components/schemas/KickoffState"
+        broadcastState:
+          $ref: "#/components/schemas/AvailabilityState"
+        lineupState:
+          $ref: "#/components/schemas/AvailabilityState"
+        newsState:
+          $ref: "#/components/schemas/AvailabilityState"
+        broadcastLastAttemptAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: >
+            REQ-010: most recent time the platform attempted to refresh
+            broadcast data, even if the attempt found nothing. Null when no
+            attempt has been recorded yet.
+        lineupLastAttemptAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        newsLastAttemptAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        broadcasts:
+          type: array
+          items:
+            $ref: "#/components/schemas/BroadcastView"
+        lineups:
+          type: array
+          items:
+            $ref: "#/components/schemas/LineupView"
+        news:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/NewsLinkView"

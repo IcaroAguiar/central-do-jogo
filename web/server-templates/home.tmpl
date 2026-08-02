@@ -1,0 +1,28 @@
+{{define "home"}}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "head-meta" .Meta}}
+</head>
+<body>
+<div id="ssr-content">
+<header>
+  <h1>Central do Jogo</h1>
+  <p>Onde assistir, escalações oficiais e notícias do futebol brasileiro, com proveniência e confiança explícitas.</p>
+</header>
+<main>
+  <section aria-labelledby="clubs-heading">
+    <h2 id="clubs-heading">Clubes suportados</h2>
+    <ul>
+      {{range .Clubs}}<li><a href="/clubes/{{.Slug}}">{{.Name}}</a></li>{{end}}
+    </ul>
+  </section>
+</main>
+</div>
+{{template "initial-data" .InitialData}}
+{{template "app-shell" .}}
+</body>
+</html>
+{{end}}

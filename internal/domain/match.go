@@ -36,6 +36,12 @@ type Match struct {
 	BroadcastState AvailabilityState
 	LineupState    AvailabilityState
 	NewsState      AvailabilityState
-	CreatedAt      time.Time
-	UpdatedAt      time.Time
+	// *LastAttemptAt record the most recent time the platform attempted to
+	// refresh the corresponding surface, even when the attempt found nothing.
+	// nil means no attempt has been recorded yet.
+	BroadcastLastAttemptAt *time.Time
+	LineupLastAttemptAt    *time.Time
+	NewsLastAttemptAt      *time.Time
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }

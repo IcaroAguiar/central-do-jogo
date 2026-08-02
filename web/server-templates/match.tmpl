@@ -1,0 +1,82 @@
+{{define "match"}}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{template "head-meta" .Meta}}
+</head>
+<body>
+<div id="ssr-content">
+{{if .NotFound}}
+<main>
+  <h1>Partida não encontrada</h1>
+  <p>Não encontramos uma partida com este endereço. Volte para a <a href="/">página inicial</a>.</p>
+</main>
+{{else}}
+<header>
+  <h1>{{.Match.HomeClubName}} x {{.Match.AwayClubName}}</h1>
+  <p>
+    {{.Match.Round}} —
+    {{if .Match.KickoffAt}}{{.Match.KickoffAt.Format "02/01/2006 15:04"}} UTC{{else}}data {{.Match.KickoffState}}{{end}}
+    {{if .Match.Venue}} — {{.Match.Venue}}{{end}}
+  </p>
+</header>
+<main>
+  <section aria-labelledby="broadcasts-heading">
+    <h2 id="broadcasts-heading">Onde assistir</h2>
+    {{if .Match.Broadcasts}}
+    <ul>
+      {{range .Match.Broadcasts}}
+      <li>{{.Channel}}{{if .Platform}} ({{.Platform}}){{end}} — {{.Access}} — confiança {{.Confidence}} — fonte {{.Source}}</li>
+      {{end}}
+    </ul>
+    {{else}}
+    <p>
+      Estado da transmissão: {{.Match.BroadcastState}}.
+      {{if .Match.BroadcastLastAttemptAt}}Última tentativa em {{.Match.BroadcastLastAttemptAt.Format "02/01/2006 15:04"}} UTC.{{else}}Nenhuma tentativa registrada ainda.{{end}}
+    </p>
+    {{end}}
+  </section>
+
+  <section aria-labelledby="lineups-heading">
+    <h2 id="lineups-heading">Escalações</h2>
+    {{if .Match.Lineups}}
+    {{range .Match.Lineups}}
+    <article>
+      <h3>{{.Side}}{{if .Formation}} — {{.Formation}}{{end}}</h3>
+      {{if .Coach}}<p>Técnico: {{.Coach}}</p>{{end}}
+      <ul>
+        {{range .Players}}<li>{{if .ShirtNumber}}{{.ShirtNumber}} — {{end}}{{.Name}}{{if not .IsStarter}} (reserva){{end}}</li>{{end}}
+      </ul>
+    </article>
+    {{end}}
+    {{else}}
+    <p>
+      Estado da escalação: {{.Match.LineupState}}.
+      {{if .Match.LineupLastAttemptAt}}Última tentativa em {{.Match.LineupLastAttemptAt.Format "02/01/2006 15:04"}} UTC.{{else}}Nenhuma tentativa registrada ainda.{{end}}
+    </p>
+    {{end}}
+  </section>
+
+  <section aria-labelledby="news-heading">
+    <h2 id="news-heading">Notícias relacionadas</h2>
+    {{if .Match.News}}
+    <ul>
+      {{range .Match.News}}<li><a href="{{.URL}}">{{.Title}}</a> — {{.Source}}</li>{{end}}
+    </ul>
+    {{else}}
+    <p>
+      Estado das notícias: {{.Match.NewsState}}.
+      {{if .Match.NewsLastAttemptAt}}Última tentativa em {{.Match.NewsLastAttemptAt.Format "02/01/2006 15:04"}} UTC.{{else}}Nenhuma tentativa registrada ainda.{{end}}
+    </p>
+    {{end}}
+  </section>
+</main>
+{{end}}
+</div>
+{{template "initial-data" .InitialData}}
+{{template "app-shell" .}}
+</body>
+</html>
+{{end}}

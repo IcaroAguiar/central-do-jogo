@@ -29,6 +29,7 @@ cd web && pnpm install && pnpm lint && pnpm typecheck && pnpm test && pnpm build
 Frontend lint/format uses Biome (`web/biome.json`). Apply fixes locally with `pnpm format`.
 
 4. Optional full stack: `docker compose -f deploy/compose.yaml up --build`
+5. Optional public-journey e2e smoke (Playwright, needs the full stack running and seeded): see `e2e/public/README.md`.
 
 ## Pull requests
 

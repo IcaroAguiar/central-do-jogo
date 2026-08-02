@@ -1,0 +1,38 @@
+{{/* Shared partials reused by home.tmpl, club.tmpl, and match.tmpl (PAT-004). */}}
+
+{{define "head-meta"}}
+<title>{{.Title}}</title>
+<meta name="description" content="{{.Description}}">
+<link rel="canonical" href="{{.CanonicalURL}}">
+<meta property="og:type" content="{{.OGType}}">
+<meta property="og:title" content="{{.Title}}">
+<meta property="og:description" content="{{.Description}}">
+<meta property="og:url" content="{{.CanonicalURL}}">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b3d2e">
+{{/* PAT-004 asset link: Vite is configured (web/vite.config.ts) to emit a
+     stable, non-hashed entry filename (app.css) precisely so this
+     compile-time template reference stays valid across builds without Go
+     needing to read a Vite manifest at runtime. */}}
+<link rel="stylesheet" href="/app.css">
+{{end}}
+
+{{define "initial-data"}}
+<script id="initial-data" type="application/json">{{.}}</script>
+{{end}}
+
+{{/* app-shell mounts the React PWA on top of the semantic SSR markup
+     (PAT-004 progressive enhancement). Chosen approach, documented also in
+     web/src/app/App.tsx:
+       1. Go always renders full semantic HTML (nav/headings/lists/links)
+          inside #ssr-content so crawlers and no-JS clients get complete,
+          indexable content and working links.
+       2. #root starts empty. On mount, the React app removes #ssr-content
+          and renders the interactive experience (client routing, search,
+          agenda tabs, sharing, etc.) into #root.
+       3. app.js is a stable filename (see web/vite.config.ts) so this
+          Go template can link to it without reading a Vite manifest. */}}
+{{define "app-shell"}}
+<div id="root"></div>
+<script type="module" src="/app.js"></script>
+{{end}}
