@@ -23,6 +23,15 @@ type Dependencies struct {
 	// Match handles GET /api/v1/matches/{slug}.
 	Match http.Handler
 
+	// AuthGoogleStart handles GET /api/v1/auth/google/start.
+	AuthGoogleStart http.Handler
+	// AuthGoogleCallback handles GET /api/v1/auth/google/callback.
+	AuthGoogleCallback http.Handler
+	// AuthMe handles GET /api/v1/auth/me.
+	AuthMe http.Handler
+	// AuthLogout handles POST /api/v1/auth/logout.
+	AuthLogout http.Handler
+
 	// HomeSSR, ClubSSR, and MatchSSR render server-side HTML for "/",
 	// "/clubes/{slug}", and "/jogos/{slug}" respectively (PAT-004). When a
 	// handler is nil, that route falls through to the SPA shell.
@@ -38,6 +47,8 @@ type Options struct {
 	Deps      Dependencies
 	// RateLimiter, when set, guards GET /api/v1/search (SEC-001).
 	RateLimiter *ratelimit.Limiter
+	// AuthRateLimiter, when set, guards OAuth start and callback (SEC-001).
+	AuthRateLimiter *ratelimit.Limiter
 }
 
 // NewRouter builds the application ServeMux. API routes are registered as
@@ -85,6 +96,26 @@ func registerAPIRoutes(mux *http.ServeMux, opts Options) {
 	}
 	if opts.Deps.Match != nil {
 		mux.Handle("GET /api/v1/matches/{slug}", opts.Deps.Match)
+	}
+	if opts.Deps.AuthGoogleStart != nil {
+		h := opts.Deps.AuthGoogleStart
+		if opts.AuthRateLimiter != nil {
+			h = ratelimit.Middleware(opts.AuthRateLimiter, "GET /api/v1/auth/google/start", writeRateLimitedError)(h)
+		}
+		mux.Handle("GET /api/v1/auth/google/start", h)
+	}
+	if opts.Deps.AuthGoogleCallback != nil {
+		h := opts.Deps.AuthGoogleCallback
+		if opts.AuthRateLimiter != nil {
+			h = ratelimit.Middleware(opts.AuthRateLimiter, "GET /api/v1/auth/google/callback", writeRateLimitedError)(h)
+		}
+		mux.Handle("GET /api/v1/auth/google/callback", h)
+	}
+	if opts.Deps.AuthMe != nil {
+		mux.Handle("GET /api/v1/auth/me", opts.Deps.AuthMe)
+	}
+	if opts.Deps.AuthLogout != nil {
+		mux.Handle("POST /api/v1/auth/logout", opts.Deps.AuthLogout)
 	}
 }
 

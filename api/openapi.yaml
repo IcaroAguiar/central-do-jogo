@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: Central do Jogo Internal API
-  version: 0.3.0
+  version: 0.4.0
   description: >
     Internal REST contract for the Central do Jogo MVP.
-    No third-party compatibility SLA is offered. Phase 3 adds the public
-    read-only journeys: search, club detail/agenda, and match detail.
+    No third-party compatibility SLA is offered. Phase 3 covers public
+    read-only journeys; Phase 4 adds optional Google OAuth sessions
+    (REQ-017, REQ-018).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -15,6 +16,8 @@ security: []
 tags:
   - name: platform
     description: Operational endpoints such as liveness probes.
+  - name: auth
+    description: Optional Google OAuth login, sessions, and current user (REQ-017, REQ-018).
   - name: search
     description: Free-text search across clubs and matches (REQ-005).
   - name: clubs
@@ -38,6 +41,128 @@ paths:
                 $ref: "#/components/schemas/HealthResponse"
         "4XX":
           description: Client error while probing health
+  /api/v1/auth/google/start:
+    get:
+      operationId: startGoogleOAuth
+      summary: Begin Google OAuth login (REQ-017)
+      description: >
+        Redirects to Google. Sets a short-lived signed OAuth state cookie.
+        Returns 503 when Google OAuth is not configured so public content
+        remains available (RISK-008).
+      tags:
+        - auth
+      security: []
+      responses:
+        "302":
+          description: Redirect to Google authorization endpoint
+        "429":
+          description: Rate limit exceeded (SEC-001)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/auth/google/callback:
+    get:
+      operationId: googleOAuthCallback
+      summary: Complete Google OAuth login
+      description: >
+        Exchanges the authorization code, upserts the user, applies the
+        maintainer allowlist (REQ-018), and sets the HttpOnly session cookie.
+      tags:
+        - auth
+      security: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the post-login path with session cookie set
+        "400":
+          description: Invalid callback or OAuth state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: Email not verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "429":
+          description: Rate limit exceeded (SEC-001)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Google token exchange failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/auth/me:
+    get:
+      operationId: getAuthMe
+      summary: Current session user
+      description: >
+        Returns authentication status. Always Cache-Control: no-store.
+        Works when auth is disabled (authenticated=false, authEnabled=false).
+      tags:
+        - auth
+      security: []
+      responses:
+        "200":
+          description: Current auth status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthMeResponse"
+  /api/v1/auth/logout:
+    post:
+      operationId: logout
+      summary: Revoke the current session
+      description: >
+        Clears and revokes the session cookie. Requires a matching Origin or
+        Referer against PUBLIC_BASE_URL when that is configured (SEC-003).
+      tags:
+        - auth
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Logged out
+        "403":
+          description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/v1/search:
     get:
       operationId: searchClubsAndMatches
@@ -169,6 +294,12 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: cdj_session
+      description: HttpOnly server-side session cookie issued after OAuth login.
   parameters:
     ClubSlug:
       name: slug
@@ -209,6 +340,27 @@ components:
             message:
               type: string
               description: Human-readable error message.
+    AuthMeResponse:
+      type: object
+      required:
+        - authenticated
+        - authEnabled
+      properties:
+        authenticated:
+          type: boolean
+        authEnabled:
+          type: boolean
+          description: Whether Google OAuth is configured on this instance.
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+        role:
+          type: string
+          enum:
+            - user
+            - maintainer
     AgendaRange:
       type: string
       enum:

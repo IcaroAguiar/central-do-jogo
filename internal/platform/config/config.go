@@ -34,6 +34,32 @@ type Config struct {
 	// X-Forwarded-For for search rate limiting. Empty means proxy headers
 	// are ignored (correct for direct exposure; required behind nginx/CDN).
 	TrustedProxyCIDRs []string
+
+	// AuthEnabled is true when Google OAuth + session secret are fully set.
+	// When false, public content still works and /api/v1/auth/me reports
+	// authEnabled=false (RISK-008).
+	AuthEnabled bool
+	// GoogleOAuthClientID / GoogleOAuthClientSecret / GoogleOAuthRedirectURL
+	// configure the initial public OAuth provider (REQ-017).
+	GoogleOAuthClientID     string
+	GoogleOAuthClientSecret string
+	GoogleOAuthRedirectURL  string
+	// SessionCookieSecret HMAC-signs OAuth state and is mixed into session
+	// operations. Required when AuthEnabled.
+	SessionCookieSecret string
+	// SessionTTL is how long a login session cookie remains valid.
+	SessionTTL time.Duration
+	// AuthCookieSecure forces Secure cookies. When unset, Secure follows
+	// whether PublicBaseURL is https.
+	AuthCookieSecure bool
+	// MaintainerAllowlistEmails grants RoleMaintainer on login (REQ-018).
+	// First login never promotes unless the email is present here.
+	MaintainerAllowlistEmails []string
+	// AuthRateLimitPerSecond / AuthRateLimitBurst guard OAuth start+callback.
+	AuthRateLimitPerSecond float64
+	AuthRateLimitBurst     int
+	// AuthPostLoginRedirect is the relative path after successful OAuth.
+	AuthPostLoginRedirect string
 }
 
 // Load reads configuration from environment variables and returns explicit errors.
@@ -88,7 +114,98 @@ func Load() (Config, error) {
 
 	cfg.TrustedProxyCIDRs = envCSV("TRUSTED_PROXY_CIDRS")
 
+	if err := loadAuth(&cfg); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
+}
+
+func loadAuth(cfg *Config) error {
+	cfg.GoogleOAuthClientID = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_ID"))
+	cfg.GoogleOAuthClientSecret = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
+	cfg.GoogleOAuthRedirectURL = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_REDIRECT_URL"))
+	cfg.SessionCookieSecret = strings.TrimSpace(os.Getenv("SESSION_COOKIE_SECRET"))
+	cfg.MaintainerAllowlistEmails = normalizeEmails(envCSV("MAINTAINER_ALLOWLIST"))
+	cfg.AuthPostLoginRedirect = strings.TrimSpace(os.Getenv("AUTH_POST_LOGIN_REDIRECT"))
+	if cfg.AuthPostLoginRedirect == "" {
+		cfg.AuthPostLoginRedirect = "/"
+	}
+
+	sessionTTLHours, err := envInt("SESSION_TTL_HOURS", 720) // 30 days
+	if err != nil {
+		return err
+	}
+	if sessionTTLHours <= 0 {
+		return fmt.Errorf("SESSION_TTL_HOURS must be positive, got %d", sessionTTLHours)
+	}
+	cfg.SessionTTL = time.Duration(sessionTTLHours) * time.Hour
+
+	cookieSecure, err := envBool("AUTH_COOKIE_SECURE", strings.HasPrefix(cfg.PublicBaseURL, "https://"))
+	if err != nil {
+		return err
+	}
+	cfg.AuthCookieSecure = cookieSecure
+
+	authRate, err := envFloat("AUTH_RATE_LIMIT_PER_SECOND", 1)
+	if err != nil {
+		return err
+	}
+	if authRate <= 0 {
+		return fmt.Errorf("AUTH_RATE_LIMIT_PER_SECOND must be positive, got %v", authRate)
+	}
+	cfg.AuthRateLimitPerSecond = authRate
+
+	authBurst, err := envInt("AUTH_RATE_LIMIT_BURST", 5)
+	if err != nil {
+		return err
+	}
+	if authBurst <= 0 {
+		return fmt.Errorf("AUTH_RATE_LIMIT_BURST must be positive, got %d", authBurst)
+	}
+	cfg.AuthRateLimitBurst = authBurst
+
+	anyOAuth := cfg.GoogleOAuthClientID != "" || cfg.GoogleOAuthClientSecret != "" ||
+		cfg.GoogleOAuthRedirectURL != "" || cfg.SessionCookieSecret != ""
+	allOAuth := cfg.GoogleOAuthClientID != "" && cfg.GoogleOAuthClientSecret != "" &&
+		cfg.SessionCookieSecret != ""
+
+	if anyOAuth && !allOAuth {
+		return fmt.Errorf("incomplete Google OAuth config: set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and SESSION_COOKIE_SECRET together (or leave all empty)")
+	}
+	if allOAuth && len(cfg.SessionCookieSecret) < 32 {
+		return fmt.Errorf("SESSION_COOKIE_SECRET must be at least 32 characters")
+	}
+	if allOAuth {
+		if cfg.GoogleOAuthRedirectURL == "" {
+			if cfg.PublicBaseURL == "" {
+				return fmt.Errorf("GOOGLE_OAUTH_REDIRECT_URL is required when PUBLIC_BASE_URL is empty")
+			}
+			cfg.GoogleOAuthRedirectURL = cfg.PublicBaseURL + "/api/v1/auth/google/callback"
+		}
+		cfg.AuthEnabled = true
+	}
+	return nil
+}
+
+func normalizeEmails(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	seen := map[string]struct{}{}
+	for _, e := range in {
+		e = strings.ToLower(strings.TrimSpace(e))
+		if e == "" {
+			continue
+		}
+		if _, ok := seen[e]; ok {
+			continue
+		}
+		seen[e] = struct{}{}
+		out = append(out, e)
+	}
+	return out
 }
 
 func envOr(key, fallback string) string {

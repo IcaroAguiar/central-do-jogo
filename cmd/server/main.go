@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/clubs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/matches"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/search"
@@ -70,7 +71,7 @@ func run() error {
 
 	errCh := make(chan error, 1)
 	go func() {
-		logger.Info("listening", "addr", cfg.HTTPAddr)
+		logger.Info("listening", "addr", cfg.HTTPAddr, "auth_enabled", cfg.AuthEnabled)
 		if serveErr := server.ListenAndServe(); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 			errCh <- serveErr
 			return
@@ -92,13 +93,14 @@ func run() error {
 }
 
 // buildRouter wires the pgx pool through the read stores, feature services,
-// and HTTP handlers into the top-level router (GOAL-004).
+// and HTTP handlers into the top-level router (GOAL-004 / GOAL-005).
 func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	clubStore := store.NewClubStore(pool)
 	matchStore := store.NewMatchStore(pool)
 	broadcastStore := store.NewBroadcastStore(pool)
 	lineupStore := store.NewLineupStore(pool)
 	newsStore := store.NewNewsStore(pool)
+	userStore := store.NewUserStore(pool)
 
 	searchSvc := search.NewService(clubStore, matchStore)
 	clubsSvc := clubs.NewService(clubStore, matchStore, time.Now)
@@ -110,6 +112,13 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 		ClubMatches: clubs.NewMatchesHandler(clubsSvc),
 		Match:       matches.NewDetailHandler(matchesSvc),
 	}
+
+	authSvc := buildAuthService(cfg, userStore)
+	authHandlers := auth.NewHandlers(authSvc)
+	deps.AuthGoogleStart = authHandlers.StartGoogle()
+	deps.AuthGoogleCallback = authHandlers.CallbackGoogle()
+	deps.AuthMe = authHandlers.Me()
+	deps.AuthLogout = authHandlers.Logout()
 
 	if cfg.SSREnabled {
 		renderer, err := render.New()
@@ -125,10 +134,40 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	if err := limiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
 		return nil, fmt.Errorf("trusted proxies: %w", err)
 	}
+	authLimiter := ratelimit.New(cfg.AuthRateLimitPerSecond, cfg.AuthRateLimitBurst)
+	if err := authLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
+		return nil, fmt.Errorf("auth trusted proxies: %w", err)
+	}
 
 	return httpplatform.NewRouter(httpplatform.Options{
-		StaticDir:   cfg.StaticDir,
-		Deps:        deps,
-		RateLimiter: limiter,
+		StaticDir:       cfg.StaticDir,
+		Deps:            deps,
+		RateLimiter:     limiter,
+		AuthRateLimiter: authLimiter,
 	}), nil
+}
+
+func buildAuthService(cfg config.Config, users *store.UserStore) *auth.Service {
+	allow := make(map[string]struct{}, len(cfg.MaintainerAllowlistEmails))
+	for _, email := range cfg.MaintainerAllowlistEmails {
+		allow[email] = struct{}{}
+	}
+	authCfg := auth.Config{
+		Enabled:           cfg.AuthEnabled,
+		SessionSecret:     []byte(cfg.SessionCookieSecret),
+		SessionTTL:        cfg.SessionTTL,
+		CookieSecure:      cfg.AuthCookieSecure,
+		PublicBaseURL:     cfg.PublicBaseURL,
+		MaintainerEmails:  allow,
+		PostLoginRedirect: auth.SafeRelativePath(cfg.AuthPostLoginRedirect),
+	}
+	var provider auth.Provider
+	if cfg.AuthEnabled {
+		provider = &auth.GoogleProvider{
+			ClientID:     cfg.GoogleOAuthClientID,
+			ClientSecret: cfg.GoogleOAuthClientSecret,
+			RedirectURL:  cfg.GoogleOAuthRedirectURL,
+		}
+	}
+	return auth.NewService(users, provider, authCfg, time.Now)
 }
