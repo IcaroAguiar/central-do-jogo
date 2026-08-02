@@ -30,7 +30,6 @@ export const CACHED_AT_HEADER = "x-cdj-cached-at";
 // .addAll()` throws on duplicate URLs.
 const PRECACHE_URLS = Array.from(new Set(self.__WB_MANIFEST.map((entry) => entry.url)));
 
-
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
