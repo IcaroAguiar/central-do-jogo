@@ -1,6 +1,7 @@
 package render
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -210,5 +211,9 @@ func assertInitialDataEscaped(t *testing.T, body string) {
 	}
 	if strings.Contains(payload, "<script") {
 		t.Fatalf("initial-data payload contains an unescaped opening script tag: %s", payload)
+	}
+	var decoded any
+	if err := json.Unmarshal([]byte(payload), &decoded); err != nil {
+		t.Fatalf("initial-data payload is not valid JSON: %v; payload=%s", err, payload)
 	}
 }

@@ -6,6 +6,8 @@
 package render
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -62,6 +64,20 @@ func (r *Renderer) render(w http.ResponseWriter, status int, name string, data a
 	return nil
 }
 
+// encodeInitialData marshals v as JSON for embedding inside <script type="application/json">.
+// Angle brackets are escaped as \u003c so a payload cannot break out of the script element.
+func encodeInitialData(v any) (template.JS, error) {
+	if v == nil {
+		return "null", nil
+	}
+	raw, err := json.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("marshal initial data: %w", err)
+	}
+	safe := bytes.ReplaceAll(raw, []byte("<"), []byte(`\u003c`))
+	return template.JS(safe), nil
+}
+
 // ClubLink is a minimal club reference used for index links (home page).
 type ClubLink struct {
 	Slug string
@@ -77,7 +93,15 @@ type HomePage struct {
 
 // RenderHome writes the home page.
 func (r *Renderer) RenderHome(w http.ResponseWriter, page HomePage) error {
-	return r.render(w, http.StatusOK, "home", page)
+	encoded, err := encodeInitialData(page.InitialData)
+	if err != nil {
+		return err
+	}
+	return r.render(w, http.StatusOK, "home", struct {
+		Meta        Meta
+		Clubs       []ClubLink
+		InitialData template.JS
+	}{Meta: page.Meta, Clubs: page.Clubs, InitialData: encoded})
 }
 
 // MatchLink is a minimal match reference used inside a club's agenda list.
@@ -106,7 +130,20 @@ type ClubPage struct {
 
 // RenderClub writes the club page with the given HTTP status (200 or 404).
 func (r *Renderer) RenderClub(w http.ResponseWriter, status int, page ClubPage) error {
-	return r.render(w, status, "club", page)
+	encoded, err := encodeInitialData(page.InitialData)
+	if err != nil {
+		return err
+	}
+	return r.render(w, status, "club", struct {
+		Meta        Meta
+		NotFound    bool
+		Club        ClubViewModel
+		Matches     []MatchLink
+		InitialData template.JS
+	}{
+		Meta: page.Meta, NotFound: page.NotFound, Club: page.Club,
+		Matches: page.Matches, InitialData: encoded,
+	})
 }
 
 // BroadcastViewModel is one broadcast entry on the match SSR page.
@@ -169,5 +206,16 @@ type MatchPage struct {
 
 // RenderMatch writes the match page with the given HTTP status (200 or 404).
 func (r *Renderer) RenderMatch(w http.ResponseWriter, status int, page MatchPage) error {
-	return r.render(w, status, "match", page)
+	encoded, err := encodeInitialData(page.InitialData)
+	if err != nil {
+		return err
+	}
+	return r.render(w, status, "match", struct {
+		Meta        Meta
+		NotFound    bool
+		Match       MatchViewModel
+		InitialData template.JS
+	}{
+		Meta: page.Meta, NotFound: page.NotFound, Match: page.Match, InitialData: encoded,
+	})
 }
