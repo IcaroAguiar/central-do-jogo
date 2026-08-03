@@ -22,6 +22,43 @@ func NewHandlers(svc *Service) *Handlers {
 	return &Handlers{svc: svc}
 }
 
+// vapidPublicKeyResponse is GET /api/v1/push/vapid-public-key.
+type vapidPublicKeyResponse struct {
+	PublicKey string `json:"publicKey"`
+	Enabled   bool   `json:"enabled"`
+}
+
+// subscriptionItem is one public subscription summary (no secrets).
+type subscriptionItem struct {
+	Endpoint  string `json:"endpoint"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// listSubscriptionsResponse is GET /api/v1/push/subscriptions.
+type listSubscriptionsResponse struct {
+	Subscriptions []subscriptionItem `json:"subscriptions"`
+}
+
+// subscribeRequest is POST /api/v1/push/subscriptions.
+type subscribeRequest struct {
+	Endpoint string `json:"endpoint"`
+	Keys     struct {
+		P256dh string `json:"p256dh"`
+		Auth   string `json:"auth"`
+	} `json:"keys"`
+}
+
+// subscribeResponse is the created/updated subscription summary.
+type subscribeResponse struct {
+	Endpoint  string `json:"endpoint"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// unsubscribeRequest is DELETE /api/v1/push/subscriptions.
+type unsubscribeRequest struct {
+	Endpoint string `json:"endpoint"`
+}
+
 // VAPIDPublicKey handles GET /api/v1/push/vapid-public-key.
 func (h *Handlers) VAPIDPublicKey() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -30,9 +67,9 @@ func (h *Handlers) VAPIDPublicKey() http.Handler {
 		if writePushError(w, r, err) {
 			return
 		}
-		httpplatform.WriteJSON(w, http.StatusOK, map[string]any{
-			"publicKey": key,
-			"enabled":   true,
+		httpplatform.WriteJSON(w, http.StatusOK, vapidPublicKeyResponse{
+			PublicKey: key,
+			Enabled:   true,
 		})
 	})
 }
@@ -41,27 +78,19 @@ func (h *Handlers) VAPIDPublicKey() http.Handler {
 func (h *Handlers) List() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		subs, err := h.svc.ListSubscriptions(r.Context(), cookieValue(r, auth.SessionCookieName))
+		subs, err := h.svc.ListSubscriptions(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName))
 		if writePushError(w, r, err) {
 			return
 		}
-		items := make([]map[string]string, 0, len(subs))
+		items := make([]subscriptionItem, 0, len(subs))
 		for _, sub := range subs {
-			items = append(items, map[string]string{
-				"endpoint":  sub.Endpoint,
-				"createdAt": sub.CreatedAt.UTC().Format(time.RFC3339),
+			items = append(items, subscriptionItem{
+				Endpoint:  sub.Endpoint,
+				CreatedAt: sub.CreatedAt.UTC().Format(time.RFC3339),
 			})
 		}
-		httpplatform.WriteJSON(w, http.StatusOK, map[string]any{"subscriptions": items})
+		httpplatform.WriteJSON(w, http.StatusOK, listSubscriptionsResponse{Subscriptions: items})
 	})
-}
-
-type subscribeBody struct {
-	Endpoint string `json:"endpoint"`
-	Keys     struct {
-		P256dh string `json:"p256dh"`
-		Auth   string `json:"auth"`
-	} `json:"keys"`
 }
 
 // Subscribe handles POST /api/v1/push/subscriptions.
@@ -72,14 +101,14 @@ func (h *Handlers) Subscribe() http.Handler {
 			httpplatform.WriteError(w, http.StatusForbidden, "csrf_rejected", "push origin not allowed")
 			return
 		}
-		var body subscribeBody
+		var body subscribeRequest
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&body); err != nil {
 			httpplatform.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid push subscription payload")
 			return
 		}
-		sub, err := h.svc.Subscribe(r.Context(), cookieValue(r, auth.SessionCookieName), SubscribeInput{
+		sub, err := h.svc.Subscribe(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), SubscribeInput{
 			Endpoint:  body.Endpoint,
 			P256dh:    body.Keys.P256dh,
 			Auth:      body.Keys.Auth,
@@ -88,15 +117,11 @@ func (h *Handlers) Subscribe() http.Handler {
 		if writePushError(w, r, err) {
 			return
 		}
-		httpplatform.WriteJSON(w, http.StatusOK, map[string]any{
-			"endpoint":  sub.Endpoint,
-			"createdAt": sub.CreatedAt.UTC().Format(time.RFC3339),
+		httpplatform.WriteJSON(w, http.StatusOK, subscribeResponse{
+			Endpoint:  sub.Endpoint,
+			CreatedAt: sub.CreatedAt.UTC().Format(time.RFC3339),
 		})
 	})
-}
-
-type unsubscribeBody struct {
-	Endpoint string `json:"endpoint"`
 }
 
 // Unsubscribe handles DELETE /api/v1/push/subscriptions.
@@ -107,14 +132,14 @@ func (h *Handlers) Unsubscribe() http.Handler {
 			httpplatform.WriteError(w, http.StatusForbidden, "csrf_rejected", "push origin not allowed")
 			return
 		}
-		var body unsubscribeBody
+		var body unsubscribeRequest
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()
 		if err := dec.Decode(&body); err != nil {
 			httpplatform.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid unsubscribe payload")
 			return
 		}
-		err := h.svc.Unsubscribe(r.Context(), cookieValue(r, auth.SessionCookieName), body.Endpoint)
+		err := h.svc.Unsubscribe(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), body.Endpoint)
 		if writePushError(w, r, err) {
 			return
 		}
@@ -135,17 +160,11 @@ func writePushError(w http.ResponseWriter, r *http.Request, err error) bool {
 		httpplatform.WriteError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 	case errors.Is(err, ErrInvalidSubscription):
 		httpplatform.WriteError(w, http.StatusBadRequest, "invalid_subscription", "invalid push subscription")
+	case errors.Is(err, ErrEndpointOwned):
+		httpplatform.WriteError(w, http.StatusConflict, "endpoint_owned", "push endpoint owned by another user")
 	default:
 		logging.FromContext(r.Context()).Error("push", slog.String("error", err.Error()))
 		httpplatform.WriteError(w, http.StatusInternalServerError, "internal_error", "push request failed")
 	}
 	return true
-}
-
-func cookieValue(r *http.Request, name string) string {
-	c, err := r.Cookie(name)
-	if err != nil {
-		return ""
-	}
-	return c.Value
 }

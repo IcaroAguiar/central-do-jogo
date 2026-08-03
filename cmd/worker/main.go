@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
@@ -50,20 +49,15 @@ func run() error {
 	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
 	pushStore := store.NewPushStore(pool)
-	pushSvc := push.NewService(workerSessions{}, pushStore, pushStore, push.StubDeliverer{}, push.Config{
-		Enabled:    cfg.PushEnabled,
-		PublicKey:  cfg.VAPIDPublicKey,
-		PrivateKey: cfg.VAPIDPrivateKey,
-		Subject:    cfg.VAPIDSubject,
-	}, nil)
+	pushRunner := push.NewOutboxRunner(pushStore, pushStore, push.StubDeliverer{}, cfg.PushEnabled, nil)
 
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
 		"ingest.cbf_match_center":    noopHandler("cbf_match_center"),
 		"ingest.cbf_official_site":   noopHandler("cbf_official_site"),
 		"ingest.gazetaesportiva":     noopHandler("gazetaesportiva"),
-		push.JobTypeDeliver:          push.DeliverHandler(pushSvc),
-		push.JobTypeCleanup:          push.CleanupHandler(pushSvc),
+		push.JobTypeDeliver:          push.DeliverHandler(pushRunner),
+		push.JobTypeCleanup:          push.CleanupHandler(pushRunner),
 	}
 
 	hostname, _ := os.Hostname()
@@ -81,16 +75,4 @@ func noopHandler(sourceID string) jobs.Handler {
 		logger.Info("noop handler executed", "source_id", sourceID, "job_id", job.ID)
 		return nil
 	}
-}
-
-// workerSessions satisfies push.SessionResolver for deliver/cleanup jobs that
-// do not resolve interactive user sessions.
-type workerSessions struct{}
-
-func (workerSessions) Enabled() bool { return false }
-func (workerSessions) PublicBaseURL() string {
-	return ""
-}
-func (workerSessions) CurrentUser(context.Context, string) (*domain.User, error) {
-	return nil, nil
 }

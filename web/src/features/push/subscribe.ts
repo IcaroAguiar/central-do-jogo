@@ -1,5 +1,5 @@
 import { createPushSubscription, fetchPushVapidPublicKey } from "../../api/client";
-import { urlBase64ToUint8Array } from "./consent";
+import { urlBase64ToUint8Array } from "./vapid";
 
 /** Register the browser PushSubscription with the account-backed API. */
 export async function subscribeCurrentBrowser(): Promise<void> {

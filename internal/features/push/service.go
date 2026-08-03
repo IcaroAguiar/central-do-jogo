@@ -26,6 +26,12 @@ var ErrAuthDisabled = errors.New("auth disabled")
 // ErrInvalidSubscription is returned for malformed subscription payloads.
 var ErrInvalidSubscription = errors.New("invalid subscription")
 
+// ErrInvalidAlert is returned for malformed outbox enqueue inputs.
+var ErrInvalidAlert = errors.New("invalid push alert")
+
+// ErrEndpointOwned is returned when another account already owns the endpoint.
+var ErrEndpointOwned = errors.New("push endpoint owned by another user")
+
 // SessionResolver looks up the current user from a session token.
 type SessionResolver interface {
 	Enabled() bool
@@ -35,9 +41,9 @@ type SessionResolver interface {
 
 // SubscriptionRepository persists browser push subscriptions.
 type SubscriptionRepository interface {
+	GetByEndpoint(ctx context.Context, endpoint string) (*domain.PushSubscription, error)
 	UpsertSubscription(ctx context.Context, sub domain.PushSubscription, now time.Time) (*domain.PushSubscription, error)
 	ListActiveByUser(ctx context.Context, userID domain.ID) ([]domain.PushSubscription, error)
-	ListActive(ctx context.Context, limit int) ([]domain.PushSubscription, error)
 	DeleteByEndpoint(ctx context.Context, userID domain.ID, endpoint string) (bool, error)
 	DisableByEndpoint(ctx context.Context, endpoint string, now time.Time) error
 	DeleteDisabledBefore(ctx context.Context, cutoff time.Time) (int64, error)
@@ -71,14 +77,6 @@ func (StubDeliverer) Deliver(context.Context, domain.PushSubscription, []byte) D
 	return DeliveryResult{Accepted: true}
 }
 
-// Config holds runtime push settings.
-type Config struct {
-	Enabled    bool
-	PublicKey  string
-	PrivateKey string
-	Subject    string
-}
-
 // SubscribeInput is the browser PushSubscriptionJSON payload.
 type SubscribeInput struct {
 	Endpoint  string
@@ -87,37 +85,37 @@ type SubscribeInput struct {
 	UserAgent string
 }
 
-// Service orchestrates authenticated subscription APIs and outbox delivery.
+// alertPayload is the JSON shape stored in push_outbox.payload.
+type alertPayload struct {
+	UserIDs []string       `json:"userIds"`
+	Title   string         `json:"title,omitempty"`
+	Body    string         `json:"body,omitempty"`
+	URL     string         `json:"url,omitempty"`
+	Extra   map[string]any `json:"-"`
+}
+
+// Service handles authenticated subscription APIs (HTTP-facing).
 type Service struct {
 	sessions SessionResolver
 	subs     SubscriptionRepository
-	outbox   OutboxRepository
-	deliver  Deliverer
-	cfg      Config
+	cfg      subscriptionConfig
 	now      func() time.Time
 }
 
-// NewService builds a push service.
-func NewService(
-	sessions SessionResolver,
-	subs SubscriptionRepository,
-	outbox OutboxRepository,
-	deliver Deliverer,
-	cfg Config,
-	now func() time.Time,
-) *Service {
+type subscriptionConfig struct {
+	Enabled   bool
+	PublicKey string
+}
+
+// NewService builds the HTTP subscription service.
+func NewService(sessions SessionResolver, subs SubscriptionRepository, enabled bool, publicKey string, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
-	}
-	if deliver == nil {
-		deliver = StubDeliverer{}
 	}
 	return &Service{
 		sessions: sessions,
 		subs:     subs,
-		outbox:   outbox,
-		deliver:  deliver,
-		cfg:      cfg,
+		cfg:      subscriptionConfig{Enabled: enabled, PublicKey: publicKey},
 		now:      now,
 	}
 }
@@ -161,14 +159,32 @@ func (s *Service) Subscribe(ctx context.Context, sessionToken string, in Subscri
 	if err != nil {
 		return nil, err
 	}
+	existing, err := s.subs.GetByEndpoint(ctx, in.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	if existing != nil && existing.UserID != user.ID {
+		return nil, ErrEndpointOwned
+	}
 	id, err := domain.NewID("psub_")
 	if err != nil {
 		return nil, err
 	}
-	return s.subs.UpsertSubscription(ctx, domain.PushSubscription{
+	if existing != nil {
+		id = existing.ID
+	}
+	out, err := s.subs.UpsertSubscription(ctx, domain.PushSubscription{
 		ID: id, UserID: user.ID, Endpoint: in.Endpoint,
 		P256dh: in.P256dh, Auth: in.Auth, UserAgent: in.UserAgent,
 	}, s.now())
+	if err != nil {
+		// Concurrent claim race: store refuses to rewrite another user's row.
+		if again, getErr := s.subs.GetByEndpoint(ctx, in.Endpoint); getErr == nil && again != nil && again.UserID != user.ID {
+			return nil, ErrEndpointOwned
+		}
+		return nil, err
+	}
+	return out, nil
 }
 
 // Unsubscribe deletes the caller's subscription by endpoint URL.
@@ -188,86 +204,6 @@ func (s *Service) Unsubscribe(ctx context.Context, sessionToken, endpoint string
 	return err
 }
 
-// EnqueueAlert records an idempotent outbox row and returns it (REQ-012).
-func (s *Service) EnqueueAlert(ctx context.Context, matchID, alertType, version string, payload map[string]any) (*domain.PushOutboxEntry, error) {
-	if !s.cfg.Enabled {
-		return nil, ErrPushDisabled
-	}
-	alertType = strings.TrimSpace(alertType)
-	version = strings.TrimSpace(version)
-	matchID = strings.TrimSpace(matchID)
-	if alertType == "" || version == "" || matchID == "" {
-		return nil, fmt.Errorf("%w: matchId, alertType, and version are required", ErrInvalidSubscription)
-	}
-	raw, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	id, err := domain.NewID("pout_")
-	if err != nil {
-		return nil, err
-	}
-	mid := domain.ID(matchID)
-	return s.outbox.EnqueueOutbox(ctx, domain.PushOutboxEntry{
-		ID:             id,
-		IdempotencyKey: domain.PushIdempotencyKey(matchID, alertType, version),
-		AlertType:      alertType,
-		MatchID:        &mid,
-		Version:        version,
-		Payload:        raw,
-	}, s.now())
-}
-
-// DeliverOutbox fans out one outbox payload to active subscriptions.
-// Acceptance is measured at the push service boundary (REQ-025), not the device.
-func (s *Service) DeliverOutbox(ctx context.Context, idempotencyKey string) error {
-	entry, err := s.outbox.GetOutboxByIdempotencyKey(ctx, idempotencyKey)
-	if err != nil {
-		return err
-	}
-	if entry == nil {
-		return fmt.Errorf("push outbox not found: %s", idempotencyKey)
-	}
-	if entry.Status == domain.PushOutboxAccepted {
-		return nil
-	}
-	subs, err := s.subs.ListActive(ctx, 1000)
-	if err != nil {
-		return err
-	}
-	var firstErr error
-	acceptedAny := false
-	for _, sub := range subs {
-		result := s.deliver.Deliver(ctx, sub, entry.Payload)
-		if result.Gone {
-			_ = s.subs.DisableByEndpoint(ctx, sub.Endpoint, s.now())
-			continue
-		}
-		if result.Err != nil {
-			if firstErr == nil {
-				firstErr = result.Err
-			}
-			continue
-		}
-		if result.Accepted {
-			acceptedAny = true
-		}
-	}
-	if firstErr != nil && !acceptedAny {
-		_ = s.outbox.MarkOutboxFailure(ctx, entry.ID, firstErr.Error(), s.now())
-		return firstErr
-	}
-	return s.outbox.MarkOutboxAccepted(ctx, entry.ID, s.now())
-}
-
-// CleanupExpiredEndpoints deletes subscriptions disabled before the retention window.
-func (s *Service) CleanupExpiredEndpoints(ctx context.Context, retention time.Duration) (int64, error) {
-	if retention <= 0 {
-		retention = 30 * 24 * time.Hour
-	}
-	return s.subs.DeleteDisabledBefore(ctx, s.now().Add(-retention))
-}
-
 func (s *Service) requireUser(ctx context.Context, sessionToken string) (*domain.User, error) {
 	if !s.sessions.Enabled() {
 		return nil, ErrAuthDisabled
@@ -280,6 +216,144 @@ func (s *Service) requireUser(ctx context.Context, sessionToken string) (*domain
 		return nil, ErrUnauthorized
 	}
 	return user, nil
+}
+
+// OutboxRunner handles enqueue, audience-scoped delivery, and cleanup (worker-facing).
+type OutboxRunner struct {
+	subs    SubscriptionRepository
+	outbox  OutboxRepository
+	deliver Deliverer
+	enabled bool
+	now     func() time.Time
+}
+
+// NewOutboxRunner builds the worker-facing outbox processor (no session dependency).
+func NewOutboxRunner(subs SubscriptionRepository, outbox OutboxRepository, deliver Deliverer, enabled bool, now func() time.Time) *OutboxRunner {
+	if now == nil {
+		now = time.Now
+	}
+	if deliver == nil {
+		deliver = StubDeliverer{}
+	}
+	return &OutboxRunner{subs: subs, outbox: outbox, deliver: deliver, enabled: enabled, now: now}
+}
+
+// EnqueueAlert records an idempotent outbox row for explicit recipient user IDs (REQ-012).
+func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, version string, userIDs []string, payload map[string]any) (*domain.PushOutboxEntry, error) {
+	if !r.enabled {
+		return nil, ErrPushDisabled
+	}
+	alertType = strings.TrimSpace(alertType)
+	version = strings.TrimSpace(version)
+	matchID = strings.TrimSpace(matchID)
+	if alertType == "" || version == "" || matchID == "" {
+		return nil, fmt.Errorf("%w: matchId, alertType, and version are required", ErrInvalidAlert)
+	}
+	if len(userIDs) == 0 {
+		return nil, fmt.Errorf("%w: userIds audience is required (no global fan-out)", ErrInvalidAlert)
+	}
+	normalized := make([]string, 0, len(userIDs))
+	seen := map[string]struct{}{}
+	for _, id := range userIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	if len(normalized) == 0 {
+		return nil, fmt.Errorf("%w: userIds audience is required", ErrInvalidAlert)
+	}
+	body := map[string]any{}
+	for k, v := range payload {
+		body[k] = v
+	}
+	body["userIds"] = normalized
+	raw, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	id, err := domain.NewID("pout_")
+	if err != nil {
+		return nil, err
+	}
+	mid := domain.ID(matchID)
+	return r.outbox.EnqueueOutbox(ctx, domain.PushOutboxEntry{
+		ID:             id,
+		IdempotencyKey: domain.PushIdempotencyKey(matchID, alertType, version),
+		AlertType:      alertType,
+		MatchID:        &mid,
+		Version:        version,
+		Payload:        raw,
+	}, r.now())
+}
+
+// DeliverOutbox fans out one outbox payload only to the listed recipient users.
+func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string) error {
+	entry, err := r.outbox.GetOutboxByIdempotencyKey(ctx, idempotencyKey)
+	if err != nil {
+		return err
+	}
+	if entry == nil {
+		return fmt.Errorf("push outbox not found: %s", idempotencyKey)
+	}
+	if entry.Status == domain.PushOutboxAccepted {
+		return nil
+	}
+	var parsed alertPayload
+	if err := json.Unmarshal(entry.Payload, &parsed); err != nil {
+		_ = r.outbox.MarkOutboxFailure(ctx, entry.ID, "invalid payload", r.now())
+		return fmt.Errorf("decode push payload: %w", err)
+	}
+	if len(parsed.UserIDs) == 0 {
+		_ = r.outbox.MarkOutboxFailure(ctx, entry.ID, "missing audience", r.now())
+		return fmt.Errorf("%w: missing userIds audience", ErrInvalidAlert)
+	}
+
+	var targets []domain.PushSubscription
+	for _, uid := range parsed.UserIDs {
+		list, err := r.subs.ListActiveByUser(ctx, domain.ID(uid))
+		if err != nil {
+			_ = r.outbox.MarkOutboxFailure(ctx, entry.ID, err.Error(), r.now())
+			return err
+		}
+		targets = append(targets, list...)
+	}
+
+	var firstErr error
+	for _, sub := range targets {
+		result := r.deliver.Deliver(ctx, sub, entry.Payload)
+		if result.Gone {
+			_ = r.subs.DisableByEndpoint(ctx, sub.Endpoint, r.now())
+			continue
+		}
+		if result.Err != nil || !result.Accepted {
+			if firstErr == nil {
+				firstErr = result.Err
+				if firstErr == nil {
+					firstErr = errors.New("push delivery not accepted")
+				}
+			}
+			continue
+		}
+	}
+	if firstErr != nil {
+		_ = r.outbox.MarkOutboxFailure(ctx, entry.ID, firstErr.Error(), r.now())
+		return firstErr
+	}
+	return r.outbox.MarkOutboxAccepted(ctx, entry.ID, r.now())
+}
+
+// CleanupExpiredEndpoints deletes subscriptions disabled before the retention window.
+func (r *OutboxRunner) CleanupExpiredEndpoints(ctx context.Context, retention time.Duration) (int64, error) {
+	if retention <= 0 {
+		retention = 30 * 24 * time.Hour
+	}
+	return r.subs.DeleteDisabledBefore(ctx, r.now().Add(-retention))
 }
 
 func normalizeSubscribe(in SubscribeInput) (SubscribeInput, error) {

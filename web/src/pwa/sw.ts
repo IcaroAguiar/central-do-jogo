@@ -15,6 +15,7 @@
  *   - Never intercept /api/v1/auth/*, any export endpoint, /api/*admin*, or
  *     /api/*privacy* — those must always hit the network directly.
  */
+import { safeNotificationUrl } from "../features/push/notificationUrl";
 import { isPrivateApiPath, isPublicApiPath } from "./apiCachePolicy";
 
 declare let self: ServiceWorkerGlobalScope & {
@@ -151,7 +152,7 @@ self.addEventListener("push", (event) => {
     const data = event.data?.json() as { title?: string; body?: string; url?: string } | undefined;
     if (data?.title) title = data.title;
     if (data?.body) body = data.body;
-    if (data?.url) url = data.url;
+    url = safeNotificationUrl(data?.url, self.location.origin);
   } catch {
     const text = event.data?.text();
     if (text) body = text;
@@ -166,8 +167,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target =
-    typeof event.notification.data?.url === "string" ? event.notification.data.url : "/";
+  const target = safeNotificationUrl(event.notification.data?.url, self.location.origin);
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

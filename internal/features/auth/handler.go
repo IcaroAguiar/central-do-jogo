@@ -149,11 +149,7 @@ func (h *Handlers) Logout() http.Handler {
 }
 
 func cookieValue(r *http.Request, name string) string {
-	c, err := r.Cookie(name)
-	if err != nil {
-		return ""
-	}
-	return c.Value
+	return httpplatform.CookieValue(r, name)
 }
 
 func clearCookie(w http.ResponseWriter, name string, secure bool) {

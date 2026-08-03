@@ -110,9 +110,5 @@ func toResponse(view View) Response {
 }
 
 func cookieValue(r *http.Request, name string) string {
-	c, err := r.Cookie(name)
-	if err != nil {
-		return ""
-	}
-	return c.Value
+	return httpplatform.CookieValue(r, name)
 }

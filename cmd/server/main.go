@@ -129,12 +129,7 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	deps.PreferencesPut = prefsHandlers.Put()
 
 	pushStore := store.NewPushStore(pool)
-	pushSvc := push.NewService(authSvc, pushStore, pushStore, push.StubDeliverer{}, push.Config{
-		Enabled:    cfg.PushEnabled,
-		PublicKey:  cfg.VAPIDPublicKey,
-		PrivateKey: cfg.VAPIDPrivateKey,
-		Subject:    cfg.VAPIDSubject,
-	}, time.Now)
+	pushSvc := push.NewService(authSvc, pushStore, cfg.PushEnabled, cfg.VAPIDPublicKey, time.Now)
 	pushHandlers := push.NewHandlers(pushSvc)
 	deps.PushVAPIDPublicKey = pushHandlers.VAPIDPublicKey()
 	deps.PushSubscriptionsList = pushHandlers.List()

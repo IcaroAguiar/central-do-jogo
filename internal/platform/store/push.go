@@ -44,25 +44,42 @@ func scanPushSubscription(row pgx.Row) (*domain.PushSubscription, error) {
 	return &s, nil
 }
 
+// GetByEndpoint returns a subscription by endpoint URL, or nil.
+func (s *PushStore) GetByEndpoint(ctx context.Context, endpoint string) (*domain.PushSubscription, error) {
+	row := s.pool.QueryRow(ctx, `SELECT `+pushSubscriptionColumns+` FROM push_subscriptions WHERE endpoint = $1`, endpoint)
+	sub, err := scanPushSubscription(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get push subscription by endpoint: %w", err)
+	}
+	return sub, nil
+}
+
 // UpsertSubscription inserts or reactivates a subscription keyed by endpoint.
+// Callers must ensure the endpoint is not owned by a different user.
 func (s *PushStore) UpsertSubscription(ctx context.Context, sub domain.PushSubscription, now time.Time) (*domain.PushSubscription, error) {
 	row := s.pool.QueryRow(ctx, `
 		INSERT INTO push_subscriptions (
 			id, user_id, endpoint, p256dh, auth, user_agent, created_at, last_seen_at, disabled_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $7, NULL)
 		ON CONFLICT (endpoint) DO UPDATE SET
-			user_id = EXCLUDED.user_id,
 			p256dh = EXCLUDED.p256dh,
 			auth = EXCLUDED.auth,
 			user_agent = EXCLUDED.user_agent,
 			last_seen_at = EXCLUDED.last_seen_at,
 			disabled_at = NULL
+		WHERE push_subscriptions.user_id = EXCLUDED.user_id
 		RETURNING `+pushSubscriptionColumns,
 		sub.ID.String(), sub.UserID.String(), sub.Endpoint, sub.P256dh, sub.Auth,
 		sub.UserAgent, now.UTC(),
 	)
 	out, err := scanPushSubscription(row)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("upsert push subscription: endpoint owned by another user")
+		}
 		return nil, fmt.Errorf("upsert push subscription: %w", err)
 	}
 	return out, nil
@@ -77,32 +94,6 @@ func (s *PushStore) ListActiveByUser(ctx context.Context, userID domain.ID) ([]d
 		ORDER BY created_at ASC`, userID.String())
 	if err != nil {
 		return nil, fmt.Errorf("list push subscriptions: %w", err)
-	}
-	defer rows.Close()
-	var out []domain.PushSubscription
-	for rows.Next() {
-		sub, err := scanPushSubscription(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, *sub)
-	}
-	return out, rows.Err()
-}
-
-// ListActive returns all active subscriptions (fan-out).
-func (s *PushStore) ListActive(ctx context.Context, limit int) ([]domain.PushSubscription, error) {
-	if limit <= 0 {
-		limit = 500
-	}
-	rows, err := s.pool.Query(ctx, `
-		SELECT `+pushSubscriptionColumns+`
-		FROM push_subscriptions
-		WHERE disabled_at IS NULL
-		ORDER BY created_at ASC
-		LIMIT $1`, limit)
-	if err != nil {
-		return nil, fmt.Errorf("list active push subscriptions: %w", err)
 	}
 	defer rows.Close()
 	var out []domain.PushSubscription

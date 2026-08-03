@@ -35,7 +35,7 @@ func EnqueueCleanupJob(ctx context.Context, store *jobs.Store, now time.Time) (*
 }
 
 // DeliverHandler processes push.deliver jobs.
-func DeliverHandler(svc *Service) jobs.Handler {
+func DeliverHandler(runner *OutboxRunner) jobs.Handler {
 	return func(ctx context.Context, job *jobs.Job) error {
 		var body struct {
 			IdempotencyKey string `json:"idempotencyKey"`
@@ -46,14 +46,14 @@ func DeliverHandler(svc *Service) jobs.Handler {
 		if body.IdempotencyKey == "" {
 			return fmt.Errorf("push.deliver missing idempotencyKey")
 		}
-		return svc.DeliverOutbox(ctx, body.IdempotencyKey)
+		return runner.DeliverOutbox(ctx, body.IdempotencyKey)
 	}
 }
 
 // CleanupHandler processes push.cleanup_expired jobs.
-func CleanupHandler(svc *Service) jobs.Handler {
+func CleanupHandler(runner *OutboxRunner) jobs.Handler {
 	return func(ctx context.Context, _ *jobs.Job) error {
-		_, err := svc.CleanupExpiredEndpoints(ctx, 30*24*time.Hour)
+		_, err := runner.CleanupExpiredEndpoints(ctx, 30*24*time.Hour)
 		return err
 	}
 }
