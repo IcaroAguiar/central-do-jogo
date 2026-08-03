@@ -101,6 +101,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/preferences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Load account club preferences
+         * @description Returns the authenticated user's primary club and favorites. Always Cache-Control: no-store (SEC-003). Empty defaults when the user has not saved preferences yet.
+         */
+        get: operations["getPreferences"];
+        /**
+         * Replace account club preferences
+         * @description Replaces the authenticated user's preferences after validating club slugs. Requires a matching Origin or Referer against PUBLIC_BASE_URL (SEC-003). Clients own local/remote merge so sync never silently overwrites visitor choices (REQ-006).
+         */
+        put: operations["putPreferences"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/search": {
         parameters: {
             query?: never;
@@ -202,6 +226,22 @@ export interface components {
             displayName?: string;
             /** @enum {string} */
             role?: "user" | "maintainer";
+        };
+        PreferencesResponse: {
+            /** @description Primary club slug, or null when unset. */
+            primaryClubSlug: string | null;
+            /** @description Favorite club slugs in save order (deduplicated, max 32). */
+            favoriteClubSlugs: string[];
+            /**
+             * Format: date-time
+             * @description UTC timestamp of the last remote save, when a row exists.
+             */
+            updatedAt?: string;
+        };
+        PreferencesUpdate: {
+            /** @description Primary club slug, or null/empty to clear. */
+            primaryClubSlug?: string | null;
+            favoriteClubSlugs: string[];
         };
         /** @enum {string} */
         AgendaRange: "week" | "month" | "season";
@@ -524,6 +564,104 @@ export interface operations {
             };
             /** @description CSRF origin rejected */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preference snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesResponse"];
+                };
+            };
+            /** @description Missing or invalid session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Auth disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    putPreferences: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreferencesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Updated preference snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreferencesResponse"];
+                };
+            };
+            /** @description Invalid body or unknown club slug */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description CSRF origin rejected */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Auth disabled */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

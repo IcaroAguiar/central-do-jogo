@@ -32,6 +32,11 @@ type Dependencies struct {
 	// AuthLogout handles POST /api/v1/auth/logout.
 	AuthLogout http.Handler
 
+	// PreferencesGet handles GET /api/v1/preferences.
+	PreferencesGet http.Handler
+	// PreferencesPut handles PUT /api/v1/preferences.
+	PreferencesPut http.Handler
+
 	// HomeSSR, ClubSSR, and MatchSSR render server-side HTML for "/",
 	// "/clubes/{slug}", and "/jogos/{slug}" respectively (PAT-004). When a
 	// handler is nil, that route falls through to the SPA shell.
@@ -116,6 +121,12 @@ func registerAPIRoutes(mux *http.ServeMux, opts Options) {
 	}
 	if opts.Deps.AuthLogout != nil {
 		mux.Handle("POST /api/v1/auth/logout", opts.Deps.AuthLogout)
+	}
+	if opts.Deps.PreferencesGet != nil {
+		mux.Handle("GET /api/v1/preferences", opts.Deps.PreferencesGet)
+	}
+	if opts.Deps.PreferencesPut != nil {
+		mux.Handle("PUT /api/v1/preferences", opts.Deps.PreferencesPut)
 	}
 }
 

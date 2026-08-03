@@ -4,7 +4,13 @@
  */
 
 /** Path fragments that must never be served from or written to the API cache. */
-export const NEVER_CACHE_FRAGMENTS = ["/api/v1/auth", "/export", "/admin", "/privacy"] as const;
+export const NEVER_CACHE_FRAGMENTS = [
+  "/api/v1/auth",
+  "/api/v1/preferences",
+  "/export",
+  "/admin",
+  "/privacy",
+] as const;
 
 export function isPrivateApiPath(pathname: string): boolean {
   return NEVER_CACHE_FRAGMENTS.some((fragment) => pathname.includes(fragment));

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { type AuthMeResponse, fetchAuthMe, logoutAuth } from "../../api/client";
+import { markAuthenticated } from "../preferences/sync";
 
 /** Compact login/logout control for the app header (TASK-027). */
 export function AuthMenu() {
@@ -39,6 +40,7 @@ export function AuthMenu() {
     setBusy(true);
     try {
       await logoutAuth();
+      markAuthenticated(false);
       setMe({ authenticated: false, authEnabled: true });
     } finally {
       setBusy(false);
