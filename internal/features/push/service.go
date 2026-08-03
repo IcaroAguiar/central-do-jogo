@@ -85,14 +85,30 @@ type SubscribeInput struct {
 	UserAgent string
 }
 
-// alertPayload is the JSON shape stored in push_outbox.payload.
-type alertPayload struct {
-	UserIDs []string       `json:"userIds"`
-	Title   string         `json:"title,omitempty"`
-	Body    string         `json:"body,omitempty"`
-	URL     string         `json:"url,omitempty"`
-	Extra   map[string]any `json:"-"`
+// AlertContent is the client-visible notification fields (no audience metadata).
+type AlertContent struct {
+	Title string
+	Body  string
+	URL   string
 }
+
+// alertPayload is the JSON shape stored in push_outbox.payload (server-side).
+type alertPayload struct {
+	UserIDs []string `json:"userIds"`
+	Title   string   `json:"title,omitempty"`
+	Body    string   `json:"body,omitempty"`
+	URL     string   `json:"url,omitempty"`
+}
+
+// clientNotification is the JSON delivered to browser endpoints (REQ-011).
+type clientNotification struct {
+	Title string `json:"title,omitempty"`
+	Body  string `json:"body,omitempty"`
+	URL   string `json:"url,omitempty"`
+}
+
+// DefaultDisabledRetention is how long disabled endpoints are kept before cleanup.
+const DefaultDisabledRetention = 30 * 24 * time.Hour
 
 // Service handles authenticated subscription APIs (HTTP-facing).
 type Service struct {
@@ -239,7 +255,7 @@ func NewOutboxRunner(subs SubscriptionRepository, outbox OutboxRepository, deliv
 }
 
 // EnqueueAlert records an idempotent outbox row for explicit recipient user IDs (REQ-012).
-func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, version string, userIDs []string, payload map[string]any) (*domain.PushOutboxEntry, error) {
+func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, version string, userIDs []string, content AlertContent) (*domain.PushOutboxEntry, error) {
 	if !r.enabled {
 		return nil, ErrPushDisabled
 	}
@@ -249,31 +265,16 @@ func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, ver
 	if alertType == "" || version == "" || matchID == "" {
 		return nil, fmt.Errorf("%w: matchId, alertType, and version are required", ErrInvalidAlert)
 	}
-	if len(userIDs) == 0 {
+	normalized := normalizeAudience(userIDs)
+	if len(normalized) == 0 {
 		return nil, fmt.Errorf("%w: userIds audience is required (no global fan-out)", ErrInvalidAlert)
 	}
-	normalized := make([]string, 0, len(userIDs))
-	seen := map[string]struct{}{}
-	for _, id := range userIDs {
-		id = strings.TrimSpace(id)
-		if id == "" {
-			continue
-		}
-		if _, ok := seen[id]; ok {
-			continue
-		}
-		seen[id] = struct{}{}
-		normalized = append(normalized, id)
-	}
-	if len(normalized) == 0 {
-		return nil, fmt.Errorf("%w: userIds audience is required", ErrInvalidAlert)
-	}
-	body := map[string]any{}
-	for k, v := range payload {
-		body[k] = v
-	}
-	body["userIds"] = normalized
-	raw, err := json.Marshal(body)
+	raw, err := json.Marshal(alertPayload{
+		UserIDs: normalized,
+		Title:   strings.TrimSpace(content.Title),
+		Body:    strings.TrimSpace(content.Body),
+		URL:     strings.TrimSpace(content.URL),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -314,6 +315,16 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 		return fmt.Errorf("%w: missing userIds audience", ErrInvalidAlert)
 	}
 
+	clientPayload, err := json.Marshal(clientNotification{
+		Title: parsed.Title,
+		Body:  parsed.Body,
+		URL:   parsed.URL,
+	})
+	if err != nil {
+		_ = r.outbox.MarkOutboxFailure(ctx, entry.ID, "encode client payload", r.now())
+		return err
+	}
+
 	var targets []domain.PushSubscription
 	for _, uid := range parsed.UserIDs {
 		list, err := r.subs.ListActiveByUser(ctx, domain.ID(uid))
@@ -326,7 +337,7 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 
 	var firstErr error
 	for _, sub := range targets {
-		result := r.deliver.Deliver(ctx, sub, entry.Payload)
+		result := r.deliver.Deliver(ctx, sub, clientPayload)
 		if result.Gone {
 			_ = r.subs.DisableByEndpoint(ctx, sub.Endpoint, r.now())
 			continue
@@ -351,9 +362,26 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 // CleanupExpiredEndpoints deletes subscriptions disabled before the retention window.
 func (r *OutboxRunner) CleanupExpiredEndpoints(ctx context.Context, retention time.Duration) (int64, error) {
 	if retention <= 0 {
-		retention = 30 * 24 * time.Hour
+		retention = DefaultDisabledRetention
 	}
 	return r.subs.DeleteDisabledBefore(ctx, r.now().Add(-retention))
+}
+
+func normalizeAudience(userIDs []string) []string {
+	normalized := make([]string, 0, len(userIDs))
+	seen := map[string]struct{}{}
+	for _, id := range userIDs {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	return normalized
 }
 
 func normalizeSubscribe(in SubscribeInput) (SubscribeInput, error) {

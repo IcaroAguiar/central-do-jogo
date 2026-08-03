@@ -113,7 +113,7 @@ func (h *Handlers) Me() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		resp := MeResponse{AuthEnabled: h.svc.Enabled()}
-		user, err := h.svc.CurrentUser(r.Context(), cookieValue(r, SessionCookieName))
+		user, err := h.svc.CurrentUser(r.Context(), httpplatform.CookieValue(r, SessionCookieName))
 		if err != nil {
 			logging.FromContext(r.Context()).Error("auth me", slog.String("error", err.Error()))
 			httpplatform.WriteError(w, http.StatusInternalServerError, "internal_error", "failed to resolve session")
@@ -137,7 +137,7 @@ func (h *Handlers) Logout() http.Handler {
 			httpplatform.WriteError(w, http.StatusForbidden, "csrf_rejected", "logout origin not allowed")
 			return
 		}
-		token := cookieValue(r, SessionCookieName)
+		token := httpplatform.CookieValue(r, SessionCookieName)
 		clearCookie(w, SessionCookieName, h.svc.CookieSecure())
 		if err := h.svc.Logout(r.Context(), token); err != nil {
 			logging.FromContext(r.Context()).Error("auth logout", slog.String("error", err.Error()))
@@ -146,10 +146,6 @@ func (h *Handlers) Logout() http.Handler {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	})
-}
-
-func cookieValue(r *http.Request, name string) string {
-	return httpplatform.CookieValue(r, name)
 }
 
 func clearCookie(w http.ResponseWriter, name string, secure bool) {

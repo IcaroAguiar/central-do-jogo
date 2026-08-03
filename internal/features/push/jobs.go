@@ -53,7 +53,7 @@ func DeliverHandler(runner *OutboxRunner) jobs.Handler {
 // CleanupHandler processes push.cleanup_expired jobs.
 func CleanupHandler(runner *OutboxRunner) jobs.Handler {
 	return func(ctx context.Context, _ *jobs.Job) error {
-		_, err := runner.CleanupExpiredEndpoints(ctx, 30*24*time.Hour)
+		_, err := runner.CleanupExpiredEndpoints(ctx, DefaultDisabledRetention)
 		return err
 	}
 }

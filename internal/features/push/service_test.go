@@ -2,6 +2,7 @@ package push_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -243,11 +244,11 @@ func TestEnqueueIdempotentAndDeliverDisablesGone(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	first, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, map[string]any{"t": "1"})
+	first, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, push.AlertContent{Title: "1"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, map[string]any{"t": "2"})
+	second, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, push.AlertContent{Title: "2"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -276,11 +277,11 @@ func TestDeliverRequiresAudienceAndDoesNotGlobalFanOut(t *testing.T) {
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
 	runner := push.NewOutboxRunner(repo, repo, push.StubDeliverer{}, true, func() time.Time { return now })
-	_, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", nil, nil)
+	_, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", nil, push.AlertContent{})
 	if !errors.Is(err, push.ErrInvalidAlert) {
 		t.Fatalf("err = %v", err)
 	}
-	entry, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, map[string]any{"title": "x"})
+	entry, err := runner.EnqueueAlert(context.Background(), "mtc_1", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, push.AlertContent{Title: "x"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +307,7 @@ func TestDeliverPartialFailureDoesNotAccept(t *testing.T) {
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
 	runner := push.NewOutboxRunner(repo, repo, partialFailDeliverer{failEndpoint: "https://push.example/bad"}, true, func() time.Time { return now })
-	entry, err := runner.EnqueueAlert(context.Background(), "mtc_2", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, nil)
+	entry, err := runner.EnqueueAlert(context.Background(), "mtc_2", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, push.AlertContent{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -317,5 +318,49 @@ func TestDeliverPartialFailureDoesNotAccept(t *testing.T) {
 	got := repo.outbox[entry.IdempotencyKey]
 	if got.Status == domain.PushOutboxAccepted {
 		t.Fatalf("partial failure must not accept")
+	}
+}
+
+type captureDeliverer struct {
+	payloads [][]byte
+}
+
+func (c *captureDeliverer) Deliver(_ context.Context, _ domain.PushSubscription, payload []byte) push.DeliveryResult {
+	cp := append([]byte(nil), payload...)
+	c.payloads = append(c.payloads, cp)
+	return push.DeliveryResult{Accepted: true}
+}
+
+func TestDeliverOmitsAudienceFromClientPayload(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, 8, 3, 18, 0, 0, 0, time.UTC)
+	repo := newMemPush()
+	repo.subs["https://push.example/a"] = domain.PushSubscription{
+		ID: "psub_a", UserID: "u1", Endpoint: "https://push.example/a",
+		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
+	}
+	cap := &captureDeliverer{}
+	runner := push.NewOutboxRunner(repo, repo, cap, true, func() time.Time { return now })
+	entry, err := runner.EnqueueAlert(context.Background(), "mtc_3", domain.PushAlertLineupOfficial, "v1", []string{"u1", "u2"}, push.AlertContent{
+		Title: "Escalação", Body: "Oficial", URL: "/matches/x",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runner.DeliverOutbox(context.Background(), entry.IdempotencyKey); err != nil {
+		t.Fatal(err)
+	}
+	if len(cap.payloads) != 1 {
+		t.Fatalf("deliveries = %d", len(cap.payloads))
+	}
+	var body map[string]any
+	if err := json.Unmarshal(cap.payloads[0], &body); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := body["userIds"]; ok {
+		t.Fatalf("client payload leaked userIds: %s", cap.payloads[0])
+	}
+	if body["title"] != "Escalação" || body["url"] != "/matches/x" {
+		t.Fatalf("client payload = %s", cap.payloads[0])
 	}
 }
