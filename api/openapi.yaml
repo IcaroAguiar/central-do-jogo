@@ -450,8 +450,9 @@ components:
         - favoriteClubSlugs
       properties:
         primaryClubSlug:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Primary club slug, or null when unset.
         favoriteClubSlugs:
           type: array
@@ -468,8 +469,9 @@ components:
         - favoriteClubSlugs
       properties:
         primaryClubSlug:
-          type: string
-          nullable: true
+          type:
+            - string
+            - "null"
           description: Primary club slug, or null/empty to clear.
         favoriteClubSlugs:
           type: array

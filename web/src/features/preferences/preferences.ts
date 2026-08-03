@@ -123,6 +123,7 @@ export function __resetPreferencesForTests(): void {
   if (!hasStorage()) return;
   window.localStorage.removeItem(PRIMARY_CLUB_KEY);
   window.localStorage.removeItem(FAVORITE_CLUBS_KEY);
+  window.localStorage.removeItem("cdj:prefsOwner");
   favoriteClubsCacheRaw = undefined;
   favoriteClubsCache = EMPTY_FAVORITES;
 }

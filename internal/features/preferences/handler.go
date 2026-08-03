@@ -65,10 +65,7 @@ func (h *Handlers) Put() http.Handler {
 		if body.FavoriteClubSlugs == nil {
 			body.FavoriteClubSlugs = []string{}
 		}
-		view, err := h.svc.Put(r.Context(), cookieValue(r, auth.SessionCookieName), Update{
-			PrimaryClubSlug:   body.PrimaryClubSlug,
-			FavoriteClubSlugs: body.FavoriteClubSlugs,
-		})
+		view, err := h.svc.Put(r.Context(), cookieValue(r, auth.SessionCookieName), Update(body))
 		if writePrefsError(w, r, err) {
 			return
 		}

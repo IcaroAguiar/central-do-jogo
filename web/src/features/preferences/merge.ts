@@ -3,6 +3,9 @@
  * Favorites are unioned; primary club never silently overwrites either side.
  */
 
+/** Matches server maxFavoriteClubs / OpenAPI maxItems. */
+export const MAX_FAVORITE_CLUBS = 32;
+
 export interface ClubPreferenceSnapshot {
   primaryClub: string | null;
   favoriteClubs: string[];
@@ -20,7 +23,7 @@ export interface MergeResult {
 }
 
 /** Deduplicate while preserving first-seen order (local favorites first). */
-export function uniquePreserveOrder(slugs: string[]): string[] {
+export function uniquePreserveOrder(slugs: string[], max = MAX_FAVORITE_CLUBS): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const slug of slugs) {
@@ -28,6 +31,7 @@ export function uniquePreserveOrder(slugs: string[]): string[] {
     if (!trimmed || seen.has(trimmed)) continue;
     seen.add(trimmed);
     out.push(trimmed);
+    if (out.length >= max) break;
   }
   return out;
 }

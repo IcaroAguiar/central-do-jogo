@@ -43,29 +43,19 @@ export function usePreferences(): ClubPreferences {
     ensurePreferencesSynced();
   }, []);
 
-  const persistRemote = useCallback(
-    (nextConflict: PrimaryConflict | null = primaryConflict) => {
-      if (!authenticated || nextConflict) return;
-      void pushLocalPreferences().catch(() => {
-        // Local prefs remain; remote retry happens on next sync.
-      });
-    },
-    [authenticated, primaryConflict],
-  );
+  const persistRemote = useCallback(() => {
+    if (!authenticated || primaryConflict) return;
+    void pushLocalPreferences().catch(() => {
+      // Local prefs remain; remote retry happens on next sync.
+    });
+  }, [authenticated, primaryConflict]);
 
   const setPrimaryClub = useCallback(
     (slug: string | null) => {
       setPrimaryClubValue(slug);
-      if (primaryConflict && slug !== null) {
-        if (slug === primaryConflict.local || slug === primaryConflict.remote) {
-          clearPrimaryConflict();
-          persistRemote(null);
-          return;
-        }
-      }
       persistRemote();
     },
-    [persistRemote, primaryConflict],
+    [persistRemote],
   );
 
   const toggleFavoriteClub = useCallback(

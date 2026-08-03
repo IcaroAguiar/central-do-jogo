@@ -33,7 +33,9 @@ describe("mergePreferences", () => {
 });
 
 describe("uniquePreserveOrder", () => {
-  it("deduplicates while keeping first occurrence", () => {
+  it("deduplicates while keeping first occurrence and respecting the cap", () => {
     expect(uniquePreserveOrder(["a", "b", "a", " ", "c"])).toEqual(["a", "b", "c"]);
+    const many = Array.from({ length: 40 }, (_, i) => `c${i}`);
+    expect(uniquePreserveOrder(many)).toHaveLength(32);
   });
 });
