@@ -4,7 +4,6 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -134,7 +133,7 @@ func (h *Handlers) Me() http.Handler {
 func (h *Handlers) Logout() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		if !originAllowed(r, h.svc.PublicBaseURL()) {
+		if !httpplatform.OriginAllowed(r, h.svc.PublicBaseURL()) {
 			httpplatform.WriteError(w, http.StatusForbidden, "csrf_rejected", "logout origin not allowed")
 			return
 		}
@@ -168,28 +167,4 @@ func clearCookie(w http.ResponseWriter, name string, secure bool) {
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0).UTC(),
 	})
-}
-
-func originAllowed(r *http.Request, publicBaseURL string) bool {
-	if publicBaseURL == "" {
-		// Fail closed: auth requires PUBLIC_BASE_URL so CSRF has a bind target.
-		return false
-	}
-	origin := strings.TrimSpace(r.Header.Get("Origin"))
-	if origin == "" {
-		referer := strings.TrimSpace(r.Header.Get("Referer"))
-		if referer == "" {
-			return false
-		}
-		origin = referer
-	}
-	base, err := url.Parse(publicBaseURL)
-	if err != nil || base.Scheme == "" || base.Host == "" {
-		return false
-	}
-	got, err := url.Parse(origin)
-	if err != nil {
-		return false
-	}
-	return strings.EqualFold(got.Scheme, base.Scheme) && strings.EqualFold(got.Host, base.Host)
 }

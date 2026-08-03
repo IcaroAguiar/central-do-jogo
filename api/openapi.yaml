@@ -1,12 +1,12 @@
 openapi: 3.1.0
 info:
   title: Central do Jogo Internal API
-  version: 0.4.0
+  version: 0.5.0
   description: >
     Internal REST contract for the Central do Jogo MVP.
     No third-party compatibility SLA is offered. Phase 3 covers public
     read-only journeys; Phase 4 adds optional Google OAuth sessions
-    (REQ-017, REQ-018).
+    (REQ-017, REQ-018) and account preference sync (REQ-006).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -18,6 +18,8 @@ tags:
     description: Operational endpoints such as liveness probes.
   - name: auth
     description: Optional Google OAuth login, sessions, and current user (REQ-017, REQ-018).
+  - name: preferences
+    description: Account-backed primary club and favorites sync (REQ-006, SEC-003).
   - name: search
     description: Free-text search across clubs and matches (REQ-005).
   - name: clubs
@@ -159,6 +161,86 @@ paths:
           description: Logged out
         "403":
           description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/preferences:
+    get:
+      operationId: getPreferences
+      summary: Load account club preferences
+      description: >
+        Returns the authenticated user's primary club and favorites.
+        Always Cache-Control: no-store (SEC-003). Empty defaults when the
+        user has not saved preferences yet.
+      tags:
+        - preferences
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Preference snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreferencesResponse"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    put:
+      operationId: putPreferences
+      summary: Replace account club preferences
+      description: >
+        Replaces the authenticated user's preferences after validating club
+        slugs. Requires a matching Origin or Referer against PUBLIC_BASE_URL
+        (SEC-003). Clients own local/remote merge so sync never silently
+        overwrites visitor choices (REQ-006).
+      tags:
+        - preferences
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreferencesUpdate"
+      responses:
+        "200":
+          description: Updated preference snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreferencesResponse"
+        "400":
+          description: Invalid body or unknown club slug
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
           content:
             application/json:
               schema:
@@ -361,6 +443,39 @@ components:
           enum:
             - user
             - maintainer
+    PreferencesResponse:
+      type: object
+      required:
+        - primaryClubSlug
+        - favoriteClubSlugs
+      properties:
+        primaryClubSlug:
+          type: string
+          nullable: true
+          description: Primary club slug, or null when unset.
+        favoriteClubSlugs:
+          type: array
+          items:
+            type: string
+          description: Favorite club slugs in save order (deduplicated, max 32).
+        updatedAt:
+          type: string
+          format: date-time
+          description: UTC timestamp of the last remote save, when a row exists.
+    PreferencesUpdate:
+      type: object
+      required:
+        - favoriteClubSlugs
+      properties:
+        primaryClubSlug:
+          type: string
+          nullable: true
+          description: Primary club slug, or null/empty to clear.
+        favoriteClubSlugs:
+          type: array
+          items:
+            type: string
+          maxItems: 32
     AgendaRange:
       type: string
       enum:

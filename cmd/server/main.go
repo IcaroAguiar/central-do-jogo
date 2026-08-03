@@ -14,6 +14,7 @@ import (
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/clubs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/matches"
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/preferences"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/search"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
@@ -101,6 +102,7 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	lineupStore := store.NewLineupStore(pool)
 	newsStore := store.NewNewsStore(pool)
 	userStore := store.NewUserStore(pool)
+	prefsStore := store.NewPreferencesStore(pool)
 
 	searchSvc := search.NewService(clubStore, matchStore)
 	clubsSvc := clubs.NewService(clubStore, matchStore, time.Now)
@@ -119,6 +121,11 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	deps.AuthGoogleCallback = authHandlers.CallbackGoogle()
 	deps.AuthMe = authHandlers.Me()
 	deps.AuthLogout = authHandlers.Logout()
+
+	prefsSvc := preferences.NewService(authSvc, prefsStore, clubStore, time.Now)
+	prefsHandlers := preferences.NewHandlers(prefsSvc)
+	deps.PreferencesGet = prefsHandlers.Get()
+	deps.PreferencesPut = prefsHandlers.Put()
 
 	if cfg.SSREnabled {
 		renderer, err := render.New()

@@ -1,6 +1,7 @@
 /**
- * Local-only club preferences (no account/auth in Phase 3). Stored directly
- * in localStorage so they survive reloads without any backend round-trip.
+ * Club preferences with localStorage as the visitor source of truth (REQ-006).
+ * Account sync lives in sync.ts / usePreferences and never silently overwrites
+ * local choices when remotes disagree.
  */
 export const PRIMARY_CLUB_KEY = "cdj:primaryClub";
 export const FAVORITE_CLUBS_KEY = "cdj:favoriteClubs";
@@ -105,9 +106,23 @@ export function toggleFavoriteClub(slug: string): boolean {
   return !isFavorite;
 }
 
+/** Apply a merged snapshot to localStorage in one notify cycle. */
+export function applyLocalPreferences(primaryClub: string | null, favoriteClubs: string[]): void {
+  if (!hasStorage()) return;
+  if (primaryClub === null) {
+    window.localStorage.removeItem(PRIMARY_CLUB_KEY);
+  } else {
+    window.localStorage.setItem(PRIMARY_CLUB_KEY, primaryClub);
+  }
+  window.localStorage.setItem(FAVORITE_CLUBS_KEY, JSON.stringify(favoriteClubs));
+  notify();
+}
+
 /** Test-only helper to reset preference state between test cases. */
 export function __resetPreferencesForTests(): void {
   if (!hasStorage()) return;
   window.localStorage.removeItem(PRIMARY_CLUB_KEY);
   window.localStorage.removeItem(FAVORITE_CLUBS_KEY);
+  favoriteClubsCacheRaw = undefined;
+  favoriteClubsCache = EMPTY_FAVORITES;
 }

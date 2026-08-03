@@ -1,6 +1,8 @@
 import type { components } from "./generated/schema";
 
 export type AuthMeResponse = components["schemas"]["AuthMeResponse"];
+export type PreferencesResponse = components["schemas"]["PreferencesResponse"];
+export type PreferencesUpdate = components["schemas"]["PreferencesUpdate"];
 export type ClubDetail = components["schemas"]["ClubDetail"];
 export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
 export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
@@ -115,4 +117,49 @@ export async function logoutAuth(): Promise<void> {
   if (!response.ok && response.status !== 204) {
     throw new ApiRequestError(response.status, "logout_failed", "failed to logout");
   }
+}
+
+export async function fetchPreferences(): Promise<PreferencesResponse> {
+  const response = await fetch("/api/v1/preferences", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    let code = "preferences_failed";
+    let message = "failed to load preferences";
+    try {
+      const body = (await response.json()) as ErrorEnvelope;
+      code = body.error.code;
+      message = body.error.message;
+    } catch {
+      // keep defaults
+    }
+    throw new ApiRequestError(response.status, code, message);
+  }
+  return (await response.json()) as PreferencesResponse;
+}
+
+export async function putPreferences(body: PreferencesUpdate): Promise<PreferencesResponse> {
+  const response = await fetch("/api/v1/preferences", {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    let code = "preferences_put_failed";
+    let message = "failed to save preferences";
+    try {
+      const envelope = (await response.json()) as ErrorEnvelope;
+      code = envelope.error.code;
+      message = envelope.error.message;
+    } catch {
+      // keep defaults
+    }
+    throw new ApiRequestError(response.status, code, message);
+  }
+  return (await response.json()) as PreferencesResponse;
 }
