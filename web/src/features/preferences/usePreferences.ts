@@ -13,6 +13,7 @@ import {
   ensurePreferencesSynced,
   getAuthenticated,
   getPrimaryConflict,
+  getRemoteReady,
   getSyncing,
   pushLocalPreferences,
   subscribeSync,
@@ -37,6 +38,7 @@ export function usePreferences(): ClubPreferences {
   const favoriteClubs = useSyncExternalStore(subscribe, getFavoriteClubs, () => []);
   const syncing = useSyncExternalStore(subscribeSync, getSyncing, () => false);
   const authenticated = useSyncExternalStore(subscribeSync, getAuthenticated, () => false);
+  const remoteReady = useSyncExternalStore(subscribeSync, getRemoteReady, () => false);
   const primaryConflict = useSyncExternalStore(subscribeSync, getPrimaryConflict, () => null);
 
   useEffect(() => {
@@ -44,11 +46,11 @@ export function usePreferences(): ClubPreferences {
   }, []);
 
   const persistRemote = useCallback(() => {
-    if (!authenticated || primaryConflict) return;
+    if (!authenticated || !remoteReady || primaryConflict) return;
     void pushLocalPreferences().catch(() => {
       // Local prefs remain; remote retry happens on next sync.
     });
-  }, [authenticated, primaryConflict]);
+  }, [authenticated, remoteReady, primaryConflict]);
 
   const setPrimaryClub = useCallback(
     (slug: string | null) => {
@@ -70,11 +72,11 @@ export function usePreferences(): ClubPreferences {
     (slug: string) => {
       applyLocalPreferences(slug, getFavoriteClubs());
       clearPrimaryConflict();
-      if (authenticated) {
+      if (authenticated && remoteReady) {
         void pushLocalPreferences().catch(() => undefined);
       }
     },
-    [authenticated],
+    [authenticated, remoteReady],
   );
 
   const isPrimary = useCallback((slug: string) => primaryClub === slug, [primaryClub]);

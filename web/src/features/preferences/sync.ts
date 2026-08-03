@@ -15,6 +15,7 @@ type Listener = () => void;
 const listeners = new Set<Listener>();
 
 let authenticated = false;
+let remoteReady = false;
 let syncing = false;
 let primaryConflict: PrimaryConflict | null = null;
 let syncStarted = false;
@@ -40,16 +41,23 @@ export function getAuthenticated(): boolean {
   return authenticated;
 }
 
+/** True only after an owner-bound prefs GET succeeded (safe to PUT). */
+export function getRemoteReady(): boolean {
+  return remoteReady;
+}
+
 export function getPrimaryConflict(): PrimaryConflict | null {
   return primaryConflict;
 }
 
 function setSyncState(next: {
   authenticated?: boolean;
+  remoteReady?: boolean;
   syncing?: boolean;
   conflict?: PrimaryConflict | null;
 }): void {
   if (next.authenticated !== undefined) authenticated = next.authenticated;
+  if (next.remoteReady !== undefined) remoteReady = next.remoteReady;
   if (next.syncing !== undefined) syncing = next.syncing;
   if (next.conflict !== undefined) primaryConflict = next.conflict;
   notify();
@@ -87,19 +95,25 @@ export function ensurePreferencesSynced(): void {
       const outcome = await syncPreferencesWithAccount();
       setSyncState({
         authenticated: outcome.authenticated,
+        remoteReady: outcome.remoteReady === true,
         conflict: outcome.conflict,
         syncing: false,
       });
     } catch {
       // Unexpected failures leave prior auth flag alone; only mark sync done.
-      setSyncState({ syncing: false });
+      setSyncState({ syncing: false, remoteReady: false });
     }
   })();
 }
 
 export type SyncOutcome =
-  | { authenticated: false; conflict: null }
-  | { authenticated: true; conflict: PrimaryConflict | null; pushFailed?: boolean };
+  | { authenticated: false; conflict: null; remoteReady: false }
+  | {
+      authenticated: true;
+      conflict: PrimaryConflict | null;
+      remoteReady: boolean;
+      pushFailed?: boolean;
+    };
 
 /**
  * Pull remote prefs and merge with local without silent overwrite.
@@ -111,33 +125,40 @@ export async function syncPreferencesWithAccount(): Promise<SyncOutcome> {
   try {
     me = await fetchAuthMe();
   } catch {
-    return { authenticated: false, conflict: null };
+    return { authenticated: false, conflict: null, remoteReady: false };
   }
   if (!me.authenticated || !me.authEnabled) {
-    return { authenticated: false, conflict: null };
+    return { authenticated: false, conflict: null, remoteReady: false };
   }
 
   const ownerKey = me.email || me.displayName || "authenticated";
+  const priorOwner = getPrefsOwner();
+  const foreignLocal = priorOwner !== null && priorOwner !== ownerKey;
+
   let remote: Awaited<ReturnType<typeof fetchPreferences>>;
   try {
     remote = await fetchPreferences();
   } catch {
-    // Session may still be valid even if prefs GET fails; do not claim anonymous.
-    return { authenticated: true, conflict: null, pushFailed: true };
+    if (foreignLocal) {
+      // Do not enable PUT while foreign leftovers remain and remote is unknown.
+      applyLocalPreferences(null, []);
+      setPrefsOwner(ownerKey);
+      return { authenticated: true, conflict: null, remoteReady: false, pushFailed: true };
+    }
+    // Same owner / first sync: session is real, but skip remote writes until GET works.
+    return { authenticated: true, conflict: null, remoteReady: false, pushFailed: true };
   }
 
   const remoteSnapshot = {
     primaryClub: remote.primaryClubSlug ?? null,
     favoriteClubs: remote.favoriteClubSlugs ?? [],
   };
-  const priorOwner = getPrefsOwner();
-  const foreignLocal = priorOwner !== null && priorOwner !== ownerKey;
 
   if (foreignLocal) {
     // Previous account's local leftovers must not merge/PUT into this user.
     applyLocalPreferences(remoteSnapshot.primaryClub, remoteSnapshot.favoriteClubs);
     setPrefsOwner(ownerKey);
-    return { authenticated: true, conflict: null };
+    return { authenticated: true, conflict: null, remoteReady: true };
   }
 
   const merge = mergePreferences(
@@ -148,16 +169,16 @@ export async function syncPreferencesWithAccount(): Promise<SyncOutcome> {
   setPrefsOwner(ownerKey);
 
   if (merge.primaryConflict) {
-    return { authenticated: true, conflict: merge.primaryConflict };
+    return { authenticated: true, conflict: merge.primaryConflict, remoteReady: true };
   }
 
   try {
     await pushLocalPreferences();
   } catch {
-    return { authenticated: true, conflict: null, pushFailed: true };
+    return { authenticated: true, conflict: null, remoteReady: true, pushFailed: true };
   }
 
-  return { authenticated: true, conflict: null };
+  return { authenticated: true, conflict: null, remoteReady: true };
 }
 
 export async function pushLocalPreferences(): Promise<void> {
@@ -173,12 +194,17 @@ export function clearPrimaryConflict(): void {
 }
 
 export function markAuthenticated(value: boolean): void {
-  setSyncState({ authenticated: value, conflict: value ? primaryConflict : null });
+  setSyncState({
+    authenticated: value,
+    remoteReady: value ? remoteReady : false,
+    conflict: value ? primaryConflict : null,
+  });
 }
 
 /** Test-only reset for vitest isolation. */
 export function __resetSyncForTests(): void {
   authenticated = false;
+  remoteReady = false;
   syncing = false;
   primaryConflict = null;
   syncStarted = false;

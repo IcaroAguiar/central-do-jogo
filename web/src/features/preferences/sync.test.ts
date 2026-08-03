@@ -50,10 +50,34 @@ describe("syncPreferencesWithAccount", () => {
     const outcome = await syncPreferencesWithAccount();
 
     expect(outcome.authenticated).toBe(true);
+    expect(outcome).toMatchObject({ remoteReady: true });
     expect(putPreferencesMock).not.toHaveBeenCalled();
     expect(getPrimaryClub()).toBeNull();
     expect(getFavoriteClubs()).toEqual(["vasco"]);
     expect(window.localStorage.getItem(PREFS_OWNER_KEY)).toBe("b@example.com");
+  });
+
+  it("does not enable remoteReady when prefs GET fails with foreign local leftovers", async () => {
+    window.localStorage.setItem(PREFS_OWNER_KEY, "a@example.com");
+    setPrimaryClub("flamengo");
+    fetchAuthMeMock.mockResolvedValue({
+      authenticated: true,
+      authEnabled: true,
+      email: "b@example.com",
+      role: "user",
+    });
+    fetchPreferencesMock.mockRejectedValue(new Error("prefs down"));
+
+    const outcome = await syncPreferencesWithAccount();
+
+    expect(outcome).toMatchObject({
+      authenticated: true,
+      remoteReady: false,
+      pushFailed: true,
+    });
+    expect(putPreferencesMock).not.toHaveBeenCalled();
+    expect(getPrimaryClub()).toBeNull();
+    expect(getFavoriteClubs()).toEqual([]);
   });
 
   it("keeps authenticated true when push fails after a successful GET", async () => {
@@ -71,7 +95,7 @@ describe("syncPreferencesWithAccount", () => {
 
     const outcome = await syncPreferencesWithAccount();
 
-    expect(outcome).toMatchObject({ authenticated: true, pushFailed: true });
+    expect(outcome).toMatchObject({ authenticated: true, remoteReady: true, pushFailed: true });
     expect(putPreferencesMock).toHaveBeenCalled();
   });
 
