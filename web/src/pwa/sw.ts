@@ -12,9 +12,11 @@
  *   - Cache successful GET /api/v1/* responses (public read journeys only)
  *     with a timestamp header, network-first, falling back to cache when
  *     offline so the UI can show "dados salvos em <timestamp>".
- *   - Never intercept /api/v1/me, any export endpoint, /api/*admin*, or
+ *   - Never intercept /api/v1/auth/*, any export endpoint, /api/*admin*, or
  *     /api/*privacy* — those must always hit the network directly.
  */
+import { isPrivateApiPath, isPublicApiPath } from "./apiCachePolicy";
+
 declare let self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: Array<{ url: string; revision: string | null }>;
 };
@@ -27,18 +29,6 @@ export const CACHED_AT_HEADER = "x-cdj-cached-at";
 // asset twice (once from `includeAssets`, once from the dist glob); `Cache
 // .addAll()` throws on duplicate URLs.
 const PRECACHE_URLS = Array.from(new Set(self.__WB_MANIFEST.map((entry) => entry.url)));
-
-/** Path fragments that must never be served from or written to the cache,
- * regardless of how the API surface grows later. */
-const NEVER_CACHE_FRAGMENTS = ["/api/v1/me", "/export", "/admin", "/privacy"];
-
-function isPrivateApiPath(pathname: string): boolean {
-  return NEVER_CACHE_FRAGMENTS.some((fragment) => pathname.includes(fragment));
-}
-
-function isPublicApiPath(pathname: string): boolean {
-  return pathname.startsWith("/api/v1/") && !isPrivateApiPath(pathname);
-}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

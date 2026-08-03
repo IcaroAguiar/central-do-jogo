@@ -1,5 +1,6 @@
 import type { components } from "./generated/schema";
 
+export type AuthMeResponse = components["schemas"]["AuthMeResponse"];
 export type ClubDetail = components["schemas"]["ClubDetail"];
 export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
 export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
@@ -93,4 +94,25 @@ export function fetchClubMatches(
 
 export function fetchMatch(slug: string): Promise<ApiResult<MatchDetail>> {
   return request<MatchDetail>(`/api/v1/matches/${encodeURIComponent(slug)}`);
+}
+
+export async function fetchAuthMe(): Promise<AuthMeResponse> {
+  const response = await fetch("/api/v1/auth/me", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, "auth_me_failed", "failed to load auth status");
+  }
+  return (await response.json()) as AuthMeResponse;
+}
+
+export async function logoutAuth(): Promise<void> {
+  const response = await fetch("/api/v1/auth/logout", {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new ApiRequestError(response.status, "logout_failed", "failed to logout");
+  }
 }

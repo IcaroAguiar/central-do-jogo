@@ -9,7 +9,8 @@ Central do Jogo is an open-source, low-cost pre-match PWA for Brazilian football
 - Phase 0 source feasibility is documented: see `docs/research/source-matrix.md` and `docs/adr/0001-source-feasibility-gate.md`.
 - GOAL-001 is **accepted with a conditional Serie A allowlist**. Domain/adapters may start only inside that allowlist.
 - Phase 2 / GOAL-003 is **done**: domain types, PostgreSQL migrations, structured logging, jobs queue.
-- Phase 3 / GOAL-004 is in progress: public read journeys (search, club detail/agenda, match detail) backed by read-only stores, an in-process rate limiter, server-side rendering for `/`, `/clubes/{slug}`, and `/jogos/{slug}`, and an idempotent `cmd/seed` command that seeds sample Serie A data (ingest adapters remain a no-op placeholder; seeding is a development/demo convenience, not the ingest pipeline).
+- Phase 3 / GOAL-004 is **done**: public read journeys (search, club detail/agenda, match detail), SSR, PWA offline shell, and `cmd/seed` demo data (ingest adapters remain a no-op placeholder).
+- Phase 4 / GOAL-005 is in progress: optional Google OAuth sessions and maintainer allowlist (TASK-027); preferences merge, Push, privacy, admin, and reports follow.
 - Broadcasts remain human-assisted for accuracy; Copa do Brasil / Libertadores / Sudamericana are deferred pending deeper source rows.
 - Keep contributor-useful product, research, and architecture documents public. Put personal drafts or non-redistributable evidence only in the ignored private-document paths described in `docs/README.md`.
 

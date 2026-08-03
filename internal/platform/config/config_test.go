@@ -13,6 +13,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv("SHUTDOWN_TIMEOUT_MS", "")
 	t.Setenv("STATIC_DIR", "")
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 
 	cfg, err := Load()
 	if err != nil {
@@ -42,6 +43,86 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.PublicBaseURL != "" {
 		t.Fatalf("PublicBaseURL = %q, want empty", cfg.PublicBaseURL)
 	}
+	if cfg.AuthEnabled {
+		t.Fatal("AuthEnabled default should be false")
+	}
+}
+
+func clearAuthEnv(t *testing.T) {
+	t.Helper()
+	for _, key := range []string{
+		"GOOGLE_OAUTH_CLIENT_ID",
+		"GOOGLE_OAUTH_CLIENT_SECRET",
+		"GOOGLE_OAUTH_REDIRECT_URL",
+		"SESSION_COOKIE_SECRET",
+		"MAINTAINER_ALLOWLIST",
+		"AUTH_COOKIE_SECURE",
+		"AUTH_POST_LOGIN_REDIRECT",
+		"SESSION_TTL_HOURS",
+		"AUTH_RATE_LIMIT_PER_SECOND",
+		"AUTH_RATE_LIMIT_BURST",
+	} {
+		t.Setenv(key, "")
+	}
+}
+
+func TestLoadAuthEnabled(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
+	t.Setenv("PUBLIC_BASE_URL", "https://example.org")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "client-id")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_SECRET", "client-secret")
+	t.Setenv("SESSION_COOKIE_SECRET", "0123456789abcdef0123456789abcdef")
+	t.Setenv("MAINTAINER_ALLOWLIST", "Owner@Example.com, other@example.com, owner@example.com")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() unexpected error: %v", err)
+	}
+	if !cfg.AuthEnabled {
+		t.Fatal("AuthEnabled should be true")
+	}
+	if cfg.GoogleOAuthRedirectURL != "https://example.org/api/v1/auth/google/callback" {
+		t.Fatalf("redirect = %q", cfg.GoogleOAuthRedirectURL)
+	}
+	if !cfg.AuthCookieSecure {
+		t.Fatal("AuthCookieSecure should default true for https PublicBaseURL")
+	}
+	if len(cfg.MaintainerAllowlistEmails) != 2 {
+		t.Fatalf("allowlist = %#v", cfg.MaintainerAllowlistEmails)
+	}
+}
+
+func TestLoadRejectsAuthWithoutPublicBaseURL(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
+	t.Setenv("PUBLIC_BASE_URL", "")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "client-id")
+	t.Setenv("GOOGLE_OAUTH_CLIENT_SECRET", "client-secret")
+	t.Setenv("SESSION_COOKIE_SECRET", "0123456789abcdef0123456789abcdef")
+	t.Setenv("GOOGLE_OAUTH_REDIRECT_URL", "https://example.org/api/v1/auth/google/callback")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected error when PUBLIC_BASE_URL is empty with auth enabled")
+	}
+	if !strings.Contains(err.Error(), "PUBLIC_BASE_URL") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestLoadRejectsIncompleteAuth(t *testing.T) {
+	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
+	t.Setenv("GOOGLE_OAUTH_CLIENT_ID", "only-id")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("expected incomplete auth error")
+	}
+	if !strings.Contains(err.Error(), "incomplete Google OAuth") {
+		t.Fatalf("error = %v", err)
+	}
 }
 
 func TestLoadCustomValues(t *testing.T) {
@@ -49,6 +130,7 @@ func TestLoadCustomValues(t *testing.T) {
 	t.Setenv("SHUTDOWN_TIMEOUT_MS", "2500")
 	t.Setenv("STATIC_DIR", "/srv/static")
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 
 	cfg, err := Load()
 	if err != nil {
@@ -67,6 +149,7 @@ func TestLoadCustomValues(t *testing.T) {
 
 func TestLoadSSRAndRateLimitOverrides(t *testing.T) {
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 	t.Setenv("SSR_ENABLED", "false")
 	t.Setenv("SEARCH_RATE_LIMIT_PER_SECOND", "5.5")
 	t.Setenv("SEARCH_RATE_LIMIT_BURST", "20")
@@ -92,6 +175,7 @@ func TestLoadSSRAndRateLimitOverrides(t *testing.T) {
 
 func TestLoadRejectsInvalidRateLimit(t *testing.T) {
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 	t.Setenv("SEARCH_RATE_LIMIT_PER_SECOND", "0")
 
 	_, err := Load()
@@ -102,6 +186,7 @@ func TestLoadRejectsInvalidRateLimit(t *testing.T) {
 
 func TestLoadRequiresDatabaseURL(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
+	clearAuthEnv(t)
 
 	_, err := Load()
 	if err == nil {
@@ -114,6 +199,7 @@ func TestLoadRequiresDatabaseURL(t *testing.T) {
 
 func TestLoadInvalidShutdownTimeout(t *testing.T) {
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 	t.Setenv("SHUTDOWN_TIMEOUT_MS", "not-a-number")
 
 	_, err := Load()
@@ -124,6 +210,7 @@ func TestLoadInvalidShutdownTimeout(t *testing.T) {
 
 func TestLoadRejectsNonPositiveShutdownTimeout(t *testing.T) {
 	t.Setenv("DATABASE_URL", testDatabaseURL)
+	clearAuthEnv(t)
 	t.Setenv("SHUTDOWN_TIMEOUT_MS", "0")
 
 	_, err := Load()

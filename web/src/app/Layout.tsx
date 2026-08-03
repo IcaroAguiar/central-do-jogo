@@ -1,4 +1,5 @@
 import { Link, Outlet } from "react-router-dom";
+import { AuthMenu } from "../features/auth/AuthMenu";
 import { BRASILIA_LABEL } from "../lib/datetime";
 import { OfflineBanner } from "../pwa/OfflineBanner";
 
@@ -16,6 +17,7 @@ export function Layout() {
           <Link to="/" className="app-brand">
             Central do Jogo
           </Link>
+          <AuthMenu />
         </nav>
       </header>
       <OfflineBanner />

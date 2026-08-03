@@ -67,3 +67,26 @@ ignores forwarded headers and keys on `RemoteAddr` — correct for direct
 exposure, but collapses every user into one bucket if an unconfigured proxy
 terminates TLS in front of the process.
 
+## Google OAuth (REQ-017 / REQ-018)
+
+Auth is optional. Leave `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`,
+and `SESSION_COOKIE_SECRET` empty to keep login disabled; public journeys and
+`GET /api/v1/auth/me` (`authEnabled: false`) still work (RISK-008).
+
+To enable:
+
+1. Create a Google OAuth Web client.
+2. Authorized redirect URI must match
+   `${PUBLIC_BASE_URL}/api/v1/auth/google/callback` (or `GOOGLE_OAUTH_REDIRECT_URL`).
+3. Set `SESSION_COOKIE_SECRET` to ≥32 random characters (operator secret store).
+4. Set `MAINTAINER_ALLOWLIST` to comma-separated emails. First login never
+   promotes a user unless the email is on this list.
+5. Serve over HTTPS in shared environments so Secure cookies apply
+   (`AUTH_COOKIE_SECURE` defaults from `https://` `PUBLIC_BASE_URL`).
+   `PUBLIC_BASE_URL` is **required** whenever OAuth is enabled so logout
+   CSRF checks have a bind target.
+
+OAuth start/callback share a separate in-process rate limit
+(`AUTH_RATE_LIMIT_*`). Logout requires a matching `Origin`/`Referer` when
+`PUBLIC_BASE_URL` is set.
+

@@ -2,7 +2,7 @@
 
 Open-source pre-match PWA for Brazilian football: where to watch, official lineups, and related links with explicit provenance and confidence.
 
-> Status: Phase 2 done (domain, persistence, jobs queue). Phase 3 in progress (search, club agenda, match detail, SSR, and sample data seeding). Allowlist: conditional Serie A (ADR 0001).
+> Status: Phase 3 done (public journeys). Phase 4 in progress (Google OAuth, sessions, and maintainer allowlist). Allowlist: conditional Serie A (ADR 0001).
 
 ## Local requirements
 

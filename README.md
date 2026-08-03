@@ -2,7 +2,7 @@
 
 PWA open source de pré-jogo para o futebol brasileiro: onde assistir, escalações oficiais e links com proveniência e confiança explícitas.
 
-> Status: Fase 2 concluída (domínio, persistência e fila de jobs). Fase 3 em curso (busca, agenda do clube, detalhe de partida, SSR e seed de dados de exemplo). Allowlist: Série A condicional (ADR 0001).
+> Status: Fase 3 concluída (jornadas públicas). Fase 4 em curso (OAuth Google, sessões e allowlist de mantenedor). Allowlist: Série A condicional (ADR 0001).
 
 ## Requisitos locais
 
