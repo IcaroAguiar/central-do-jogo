@@ -60,6 +60,15 @@ type Config struct {
 	AuthRateLimitBurst     int
 	// AuthPostLoginRedirect is the relative path after successful OAuth.
 	AuthPostLoginRedirect string
+
+	// PushEnabled is true when VAPID public+private keys are fully set.
+	// When false, subscription APIs return 503 and the UI hides consent (RISK-005).
+	PushEnabled bool
+	// VAPIDPublicKey / VAPIDPrivateKey authenticate Web Push (DEP-005).
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	// VAPIDSubject is the contact URI embedded in VAPID JWT (mailto: or https:).
+	VAPIDSubject string
 }
 
 // Load reads configuration from environment variables and returns explicit errors.
@@ -115,6 +124,9 @@ func Load() (Config, error) {
 	cfg.TrustedProxyCIDRs = envCSV("TRUSTED_PROXY_CIDRS")
 
 	if err := loadAuth(&cfg); err != nil {
+		return Config{}, err
+	}
+	if err := loadPush(&cfg); err != nil {
 		return Config{}, err
 	}
 
@@ -184,6 +196,25 @@ func loadAuth(cfg *Config) error {
 			cfg.GoogleOAuthRedirectURL = cfg.PublicBaseURL + "/api/v1/auth/google/callback"
 		}
 		cfg.AuthEnabled = true
+	}
+	return nil
+}
+
+func loadPush(cfg *Config) error {
+	cfg.VAPIDPublicKey = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
+	cfg.VAPIDPrivateKey = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
+	cfg.VAPIDSubject = strings.TrimSpace(os.Getenv("VAPID_SUBJECT"))
+	if cfg.VAPIDSubject == "" {
+		cfg.VAPIDSubject = "mailto:ops@centraldojogo.local"
+	}
+
+	any := cfg.VAPIDPublicKey != "" || cfg.VAPIDPrivateKey != ""
+	all := cfg.VAPIDPublicKey != "" && cfg.VAPIDPrivateKey != ""
+	if any && !all {
+		return fmt.Errorf("incomplete Web Push config: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY together (or leave both empty)")
+	}
+	if all {
+		cfg.PushEnabled = true
 	}
 	return nil
 }

@@ -1,12 +1,13 @@
 openapi: 3.1.0
 info:
   title: Central do Jogo Internal API
-  version: 0.5.0
+  version: 0.6.0
   description: >
     Internal REST contract for the Central do Jogo MVP.
     No third-party compatibility SLA is offered. Phase 3 covers public
     read-only journeys; Phase 4 adds optional Google OAuth sessions
-    (REQ-017, REQ-018) and account preference sync (REQ-006).
+    (REQ-017, REQ-018), account preference sync (REQ-006), and Web Push
+    subscriptions (REQ-011, REQ-012).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -20,6 +21,8 @@ tags:
     description: Optional Google OAuth login, sessions, and current user (REQ-017, REQ-018).
   - name: preferences
     description: Account-backed primary club and favorites sync (REQ-006, SEC-003).
+  - name: push
+    description: Opt-in Web Push subscriptions and VAPID public key (REQ-011, REQ-012, SEC-003).
   - name: search
     description: Free-text search across clubs and matches (REQ-005).
   - name: clubs
@@ -241,6 +244,146 @@ paths:
                 $ref: "#/components/schemas/Error"
         "503":
           description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/push/vapid-public-key:
+    get:
+      operationId: getPushVapidPublicKey
+      summary: VAPID public key for Web Push subscribe
+      description: >
+        Returns the applicationServerKey when Web Push is configured.
+        Always Cache-Control: no-store.
+      tags:
+        - push
+      security: []
+      responses:
+        "200":
+          description: VAPID public key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushVapidPublicKeyResponse"
+        "503":
+          description: Push disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/push/subscriptions:
+    get:
+      operationId: listPushSubscriptions
+      summary: List the caller's active push endpoints
+      description: >
+        Returns endpoints only (no p256dh/auth secrets). Requires a session.
+      tags:
+        - push
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Active subscriptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushSubscriptionListResponse"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth or push disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    post:
+      operationId: createPushSubscription
+      summary: Register or refresh a browser push subscription
+      description: >
+        Upserts by endpoint for the authenticated user. CSRF Origin/Referer
+        required (SEC-003). Permission should only be requested after the user
+        follows a club (REQ-011).
+      tags:
+        - push
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionCreate"
+      responses:
+        "200":
+          description: Stored subscription summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PushSubscriptionSummary"
+        "400":
+          description: Invalid subscription payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth or push disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deletePushSubscription
+      summary: Remove a browser push subscription
+      tags:
+        - push
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionDelete"
+      responses:
+        "204":
+          description: Removed
+        "400":
+          description: Invalid body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth or push disabled
           content:
             application/json:
               schema:
@@ -478,6 +621,65 @@ components:
           items:
             type: string
           maxItems: 32
+    PushVapidPublicKeyResponse:
+      type: object
+      required:
+        - publicKey
+        - enabled
+      properties:
+        publicKey:
+          type: string
+          description: Base64 URL-safe VAPID applicationServerKey.
+        enabled:
+          type: boolean
+    PushSubscriptionSummary:
+      type: object
+      required:
+        - endpoint
+        - createdAt
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+    PushSubscriptionListResponse:
+      type: object
+      required:
+        - subscriptions
+      properties:
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/PushSubscriptionSummary"
+    PushSubscriptionCreate:
+      type: object
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+        keys:
+          type: object
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+            auth:
+              type: string
+    PushSubscriptionDelete:
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          type: string
+          format: uri
     AgendaRange:
       type: string
       enum:

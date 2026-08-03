@@ -90,3 +90,20 @@ OAuth start/callback share a separate in-process rate limit
 (`AUTH_RATE_LIMIT_*`). Logout requires a matching `Origin`/`Referer` when
 `PUBLIC_BASE_URL` is set.
 
+## Web Push (REQ-011 / REQ-012)
+
+Push is optional. Leave `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` empty to
+keep subscriptions disabled (`503 push_disabled`). Public content still works.
+
+To enable:
+
+1. Generate a VAPID key pair (`npx web-push generate-vapid-keys`).
+2. Set both keys in the operator secret store / Compose env (never commit them).
+3. Optionally set `VAPID_SUBJECT` to a `mailto:` or `https:` contact URI.
+4. Serve over HTTPS so browsers allow PushManager (local http exceptions vary).
+
+The UI asks for notification permission only after the visitor follows a club
+(favorite or primary). Delivery uses a stub accept path in the worker until a
+real webpush sender is wired; expired endpoints are disabled on Gone and purged
+by `push.cleanup_expired` jobs.
+

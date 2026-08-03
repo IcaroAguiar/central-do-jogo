@@ -1,6 +1,7 @@
 import { Link, Outlet } from "react-router-dom";
 import { AuthMenu } from "../features/auth/AuthMenu";
 import { PrimaryConflictBanner } from "../features/preferences/PrimaryConflictBanner";
+import { PushConsentBanner } from "../features/push/PushConsentBanner";
 import { BRASILIA_LABEL } from "../lib/datetime";
 import { OfflineBanner } from "../pwa/OfflineBanner";
 
@@ -23,6 +24,7 @@ export function Layout() {
       </header>
       <OfflineBanner />
       <PrimaryConflictBanner />
+      <PushConsentBanner />
       <main id="main-content" tabIndex={-1}>
         <Outlet />
       </main>

@@ -14,6 +14,11 @@ describe("apiCachePolicy", () => {
     expect(isPublicApiPath("/api/v1/preferences")).toBe(false);
   });
 
+  it("keeps push routes out of the public API cache", () => {
+    expect(isPrivateApiPath("/api/v1/push/subscriptions")).toBe(true);
+    expect(isPublicApiPath("/api/v1/push/vapid-public-key")).toBe(false);
+  });
+
   it("still caches public read journeys", () => {
     expect(isPublicApiPath("/api/v1/search")).toBe(true);
     expect(isPublicApiPath("/api/v1/clubs/flamengo")).toBe(true);

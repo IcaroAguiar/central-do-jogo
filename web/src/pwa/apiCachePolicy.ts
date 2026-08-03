@@ -7,6 +7,7 @@
 export const NEVER_CACHE_FRAGMENTS = [
   "/api/v1/auth",
   "/api/v1/preferences",
+  "/api/v1/push",
   "/export",
   "/admin",
   "/privacy",

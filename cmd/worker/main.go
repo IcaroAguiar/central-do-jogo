@@ -8,10 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
+	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 func main() {
@@ -44,20 +47,29 @@ func run() error {
 	}
 	logger.Info("database migrations applied")
 
-	store := jobs.NewStore(pool)
+	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
+	pushStore := store.NewPushStore(pool)
+	pushSvc := push.NewService(workerSessions{}, pushStore, pushStore, push.StubDeliverer{}, push.Config{
+		Enabled:    cfg.PushEnabled,
+		PublicKey:  cfg.VAPIDPublicKey,
+		PrivateKey: cfg.VAPIDPrivateKey,
+		Subject:    cfg.VAPIDSubject,
+	}, nil)
 
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
 		"ingest.cbf_match_center":    noopHandler("cbf_match_center"),
 		"ingest.cbf_official_site":   noopHandler("cbf_official_site"),
 		"ingest.gazetaesportiva":     noopHandler("gazetaesportiva"),
+		push.JobTypeDeliver:          push.DeliverHandler(pushSvc),
+		push.JobTypeCleanup:          push.CleanupHandler(pushSvc),
 	}
 
 	hostname, _ := os.Hostname()
 	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
 
-	worker := jobs.NewWorker(store, healthStore, handlers, owner)
+	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner)
 	logger.Info("worker started", "owner", owner, "handlers", len(handlers))
 
 	return worker.Run(ctx, logger)
@@ -69,4 +81,16 @@ func noopHandler(sourceID string) jobs.Handler {
 		logger.Info("noop handler executed", "source_id", sourceID, "job_id", job.ID)
 		return nil
 	}
+}
+
+// workerSessions satisfies push.SessionResolver for deliver/cleanup jobs that
+// do not resolve interactive user sessions.
+type workerSessions struct{}
+
+func (workerSessions) Enabled() bool { return false }
+func (workerSessions) PublicBaseURL() string {
+	return ""
+}
+func (workerSessions) CurrentUser(context.Context, string) (*domain.User, error) {
+	return nil, nil
 }

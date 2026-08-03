@@ -127,7 +127,7 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 |------|-------------|-----------|------|
 | TASK-027 | Criar `internal/features/auth/` para OAuth configuravel, Google inicial, sessoes seguras e allowlist de mantenedor; adicionar migracoes de usuarios/sessoes. | x | 2026-08-02 |
 | TASK-028 | Criar `internal/features/preferences/` e `web/src/features/preferences/` para merge local/remoto, escolha de clube principal e favoritos. | x | 2026-08-02 |
-| TASK-029 | Criar `internal/features/push/` e `web/src/features/push/` para consentimento contextual, subscriptions, deduplicacao/versionamento, retries e limpeza de endpoints expirados. | | |
+| TASK-029 | Criar `internal/features/push/` e `web/src/features/push/` para consentimento contextual, subscriptions, deduplicacao/versionamento, retries e limpeza de endpoints expirados. | x | 2026-08-03 |
 | TASK-030 | Criar `internal/features/privacy/` e `web/src/features/settings/` para eventos first-party, retencao 90 dias, exportacao JSON e exclusao autoatendida. | | |
 | TASK-031 | Criar `internal/features/admin/` e `web/src/features/admin/` para saude de fontes, partidas em risco, confirmacao/correcao/divergencia e trilha de auditoria. | | |
 | TASK-032 | Criar `internal/features/reports/` e `web/src/features/reports/` para relatos anonimos limitados/sanitizados e fila contextual do mantenedor. | | |

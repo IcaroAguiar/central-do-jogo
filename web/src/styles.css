@@ -362,6 +362,37 @@ input[type="text"] {
   cursor: pointer;
 }
 
+.push-consent {
+  padding: 0.85rem 1.5rem;
+  background: #1a4a3a;
+  border-bottom: 1px solid var(--border);
+}
+
+.push-consent p {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+}
+
+.push-consent__error {
+  color: #f4d35e;
+}
+
+.push-consent__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.push-consent__actions button {
+  cursor: pointer;
+}
+
+.push-consent__later {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--fg);
+}
+
 .not-found {
   padding: 3rem 0;
 }

@@ -142,3 +142,48 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(cacheFirstAsset(request));
   }
 });
+
+self.addEventListener("push", (event) => {
+  let title = "Central do Jogo";
+  let body = "Há uma atualização de pré-jogo.";
+  let url = "/";
+  try {
+    const data = event.data?.json() as { title?: string; body?: string; url?: string } | undefined;
+    if (data?.title) title = data.title;
+    if (data?.body) body = data.body;
+    if (data?.url) url = data.url;
+  } catch {
+    const text = event.data?.text();
+    if (text) body = text;
+  }
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      data: { url },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target =
+    typeof event.notification.data?.url === "string" ? event.notification.data.url : "/";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && "focus" in client) {
+          return (client as WindowClient).focus().then((focused) => {
+            if (focused && "navigate" in focused) {
+              return focused.navigate(target);
+            }
+            return focused;
+          });
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(target);
+      }
+      return undefined;
+    }),
+  );
+});

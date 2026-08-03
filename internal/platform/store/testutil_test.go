@@ -34,6 +34,8 @@ func openTestPool(t *testing.T) *pgxpool.Pool {
 	// by the jobs package but references sources, so it must be cleared here
 	// too or deleting sources fails when jobs data is present.
 	for _, stmt := range []string{
+		"DELETE FROM push_outbox",
+		"DELETE FROM push_subscriptions",
 		"DELETE FROM user_preferences",
 		"DELETE FROM sessions",
 		"DELETE FROM users",

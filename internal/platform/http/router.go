@@ -37,6 +37,15 @@ type Dependencies struct {
 	// PreferencesPut handles PUT /api/v1/preferences.
 	PreferencesPut http.Handler
 
+	// PushVAPIDPublicKey handles GET /api/v1/push/vapid-public-key.
+	PushVAPIDPublicKey http.Handler
+	// PushSubscriptionsList handles GET /api/v1/push/subscriptions.
+	PushSubscriptionsList http.Handler
+	// PushSubscribe handles POST /api/v1/push/subscriptions.
+	PushSubscribe http.Handler
+	// PushUnsubscribe handles DELETE /api/v1/push/subscriptions.
+	PushUnsubscribe http.Handler
+
 	// HomeSSR, ClubSSR, and MatchSSR render server-side HTML for "/",
 	// "/clubes/{slug}", and "/jogos/{slug}" respectively (PAT-004). When a
 	// handler is nil, that route falls through to the SPA shell.
@@ -127,6 +136,18 @@ func registerAPIRoutes(mux *http.ServeMux, opts Options) {
 	}
 	if opts.Deps.PreferencesPut != nil {
 		mux.Handle("PUT /api/v1/preferences", opts.Deps.PreferencesPut)
+	}
+	if opts.Deps.PushVAPIDPublicKey != nil {
+		mux.Handle("GET /api/v1/push/vapid-public-key", opts.Deps.PushVAPIDPublicKey)
+	}
+	if opts.Deps.PushSubscriptionsList != nil {
+		mux.Handle("GET /api/v1/push/subscriptions", opts.Deps.PushSubscriptionsList)
+	}
+	if opts.Deps.PushSubscribe != nil {
+		mux.Handle("POST /api/v1/push/subscriptions", opts.Deps.PushSubscribe)
+	}
+	if opts.Deps.PushUnsubscribe != nil {
+		mux.Handle("DELETE /api/v1/push/subscriptions", opts.Deps.PushUnsubscribe)
 	}
 }
 
