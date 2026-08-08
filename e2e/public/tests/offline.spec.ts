@@ -30,7 +30,8 @@ test.describe("offline resilience", () => {
 
     const search = page.getByRole("combobox", { name: "Buscar clube ou partida" });
     await search.fill("fl");
-    await page.getByRole("option").first().click();
+    await expect(page.getByRole("status")).toContainText(/resultado/);
+    await page.getByRole("option").first().getByRole("button").click();
     await expect(page).toHaveURL(/\/clubes\//);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await page.waitForLoadState("networkidle");

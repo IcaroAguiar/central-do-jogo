@@ -39,3 +39,5 @@ web/coverage/
 /blob-report/
 web/test-results/
 web/playwright-report/
+e2e/public/playwright-report/
+e2e/public/test-results/

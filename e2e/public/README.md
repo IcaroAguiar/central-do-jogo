@@ -1,8 +1,9 @@
 # Public journey e2e smoke (Playwright)
 
 Covers the public read journeys end to end against a real, built, running
-stack: search → club agenda → match detail → share (TEST-008 partial, no
-Push notifications in Phase 3), plus an offline resilience check (TEST-010).
+stack: search → club agenda → match detail → share (TEST-008 smoke), offline
+resilience (TEST-010), and Phase 4 API readiness probes (auth/push config
+surfaces without requiring live Google/VAPID secrets).
 
 These tests intentionally do **not** start their own server: they need the
 real Go SSR pages, the real `/api/v1/*` responses, and a real installed
@@ -51,7 +52,7 @@ plugin's `devOptions.enabled` is `false` on purpose — see
 
 ## CI
 
-CI does **not** run this suite by default (it needs a live database and a
-built stack, which is heavier than the other CI jobs). See
-`.github/workflows/ci.yml`'s `e2e-public` job: it only runs on
-`workflow_dispatch` or when a pull request is labeled `run-e2e`.
+The `e2e-public` job runs on every `pull_request` and every push to `main`
+(and on `workflow_dispatch`). It boots Postgres, seeds data, builds the web
+app, starts `cmd/server`, and uploads the Playwright HTML report as an
+artifact. See `docs/validation/` for the evidence contract.
