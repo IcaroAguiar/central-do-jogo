@@ -3,6 +3,10 @@ import type { components } from "./generated/schema";
 export type AuthMeResponse = components["schemas"]["AuthMeResponse"];
 export type PreferencesResponse = components["schemas"]["PreferencesResponse"];
 export type PreferencesUpdate = components["schemas"]["PreferencesUpdate"];
+export type PushVapidPublicKeyResponse = components["schemas"]["PushVapidPublicKeyResponse"];
+export type PushSubscriptionCreate = components["schemas"]["PushSubscriptionCreate"];
+export type PushSubscriptionListResponse = components["schemas"]["PushSubscriptionListResponse"];
+export type PushSubscriptionSummary = components["schemas"]["PushSubscriptionSummary"];
 export type ClubDetail = components["schemas"]["ClubDetail"];
 export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
 export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
@@ -162,4 +166,58 @@ export async function putPreferences(body: PreferencesUpdate): Promise<Preferenc
     throw new ApiRequestError(response.status, code, message);
   }
   return (await response.json()) as PreferencesResponse;
+}
+
+async function authedJSON<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
+  const response = await fetch(path, {
+    ...init,
+    credentials: "same-origin",
+    headers,
+  });
+  if (!response.ok) {
+    let code = "request_failed";
+    let message = response.statusText || "request failed";
+    try {
+      const body = (await response.json()) as ErrorEnvelope;
+      code = body.error.code;
+      message = body.error.message;
+    } catch {
+      // keep defaults
+    }
+    throw new ApiRequestError(response.status, code, message);
+  }
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  return (await response.json()) as T;
+}
+
+export function fetchPushVapidPublicKey(): Promise<PushVapidPublicKeyResponse> {
+  return authedJSON<PushVapidPublicKeyResponse>("/api/v1/push/vapid-public-key");
+}
+
+export function fetchPushSubscriptions(): Promise<PushSubscriptionListResponse> {
+  return authedJSON<PushSubscriptionListResponse>("/api/v1/push/subscriptions");
+}
+
+export function createPushSubscription(
+  body: PushSubscriptionCreate,
+): Promise<PushSubscriptionSummary> {
+  return authedJSON<PushSubscriptionSummary>("/api/v1/push/subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function deletePushSubscription(endpoint: string): Promise<void> {
+  return authedJSON<void>("/api/v1/push/subscriptions", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ endpoint }),
+  });
 }

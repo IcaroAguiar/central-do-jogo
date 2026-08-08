@@ -61,6 +61,9 @@ func clearAuthEnv(t *testing.T) {
 		"SESSION_TTL_HOURS",
 		"AUTH_RATE_LIMIT_PER_SECOND",
 		"AUTH_RATE_LIMIT_BURST",
+		"VAPID_PUBLIC_KEY",
+		"VAPID_PRIVATE_KEY",
+		"VAPID_SUBJECT",
 	} {
 		t.Setenv(key, "")
 	}

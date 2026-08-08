@@ -8,10 +8,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
+	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 func main() {
@@ -44,20 +46,24 @@ func run() error {
 	}
 	logger.Info("database migrations applied")
 
-	store := jobs.NewStore(pool)
+	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
+	pushStore := store.NewPushStore(pool)
+	pushRunner := push.NewOutboxRunner(pushStore, pushStore, push.StubDeliverer{}, cfg.PushEnabled, nil)
 
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
 		"ingest.cbf_match_center":    noopHandler("cbf_match_center"),
 		"ingest.cbf_official_site":   noopHandler("cbf_official_site"),
 		"ingest.gazetaesportiva":     noopHandler("gazetaesportiva"),
+		push.JobTypeDeliver:          push.DeliverHandler(pushRunner),
+		push.JobTypeCleanup:          push.CleanupHandler(pushRunner),
 	}
 
 	hostname, _ := os.Hostname()
 	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
 
-	worker := jobs.NewWorker(store, healthStore, handlers, owner)
+	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner)
 	logger.Info("worker started", "owner", owner, "handlers", len(handlers))
 
 	return worker.Run(ctx, logger)

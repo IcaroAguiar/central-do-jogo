@@ -15,6 +15,7 @@ import (
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/clubs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/matches"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/preferences"
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/search"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
@@ -126,6 +127,14 @@ func buildRouter(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error) {
 	prefsHandlers := preferences.NewHandlers(prefsSvc)
 	deps.PreferencesGet = prefsHandlers.Get()
 	deps.PreferencesPut = prefsHandlers.Put()
+
+	pushStore := store.NewPushStore(pool)
+	pushSvc := push.NewService(authSvc, pushStore, cfg.PushEnabled, cfg.VAPIDPublicKey, time.Now)
+	pushHandlers := push.NewHandlers(pushSvc)
+	deps.PushVAPIDPublicKey = pushHandlers.VAPIDPublicKey()
+	deps.PushSubscriptionsList = pushHandlers.List()
+	deps.PushSubscribe = pushHandlers.Subscribe()
+	deps.PushUnsubscribe = pushHandlers.Unsubscribe()
 
 	if cfg.SSREnabled {
 		renderer, err := render.New()

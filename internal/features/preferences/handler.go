@@ -39,7 +39,7 @@ func NewHandlers(svc *Service) *Handlers {
 func (h *Handlers) Get() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		view, err := h.svc.Get(r.Context(), cookieValue(r, auth.SessionCookieName))
+		view, err := h.svc.Get(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName))
 		if writePrefsError(w, r, err) {
 			return
 		}
@@ -65,7 +65,7 @@ func (h *Handlers) Put() http.Handler {
 		if body.FavoriteClubSlugs == nil {
 			body.FavoriteClubSlugs = []string{}
 		}
-		view, err := h.svc.Put(r.Context(), cookieValue(r, auth.SessionCookieName), Update(body))
+		view, err := h.svc.Put(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), Update(body))
 		if writePrefsError(w, r, err) {
 			return
 		}
@@ -107,12 +107,4 @@ func toResponse(view View) Response {
 		resp.UpdatedAt = &s
 	}
 	return resp
-}
-
-func cookieValue(r *http.Request, name string) string {
-	c, err := r.Cookie(name)
-	if err != nil {
-		return ""
-	}
-	return c.Value
 }
