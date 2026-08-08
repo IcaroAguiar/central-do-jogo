@@ -17,7 +17,7 @@
 | Web unit | `cd web && pnpm test` | **pass** — 11 files / 36 tests |
 | Web build | `cd web && pnpm build` | pass |
 | OpenAPI | `npx @redocly/cli@1.34.5 lint api/openapi.yaml` | **pass** — valid, 5 existing warnings |
-| E2E public | seed + server + `cd web && pnpm e2e` | **pass** — 4/4 (smoke, offline, phase4 auth/me, phase4 vapid) |
+| E2E public | seed + server + `cd web && pnpm e2e` | **pass** — 4/4 (smoke, offline, phase4 auth/me, phase4 vapid); re-run after option-button click harden also 4/4 |
 
 ## E2E detail
 
