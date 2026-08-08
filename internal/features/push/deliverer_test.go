@@ -2,8 +2,7 @@ package push_test
 
 import (
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto/ecdh"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -32,12 +31,11 @@ func mustVAPIDKeys(t *testing.T) (publicKey, privateKey string) {
 
 func mustSubscriptionKeys(t *testing.T) (p256dh, auth string) {
 	t.Helper()
-	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	priv, err := ecdh.P256().GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw := elliptic.Marshal(elliptic.P256(), priv.PublicKey.X, priv.PublicKey.Y)
-	p256dh = base64.RawURLEncoding.EncodeToString(raw)
+	p256dh = base64.RawURLEncoding.EncodeToString(priv.PublicKey().Bytes())
 	authBytes := make([]byte, 16)
 	if _, err := rand.Read(authBytes); err != nil {
 		t.Fatal(err)
@@ -46,9 +44,12 @@ func mustSubscriptionKeys(t *testing.T) (p256dh, auth string) {
 	return p256dh, auth
 }
 
-func TestNewDelivererFallsBackToStubWithoutKeys(t *testing.T) {
+func TestDelivererForConfigFallsBackToStubWhenDisabled(t *testing.T) {
 	t.Parallel()
-	d := push.NewDeliverer("", "", "", nil)
+	d, err := push.DelivererForConfig(false, "", "", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	result := d.Deliver(context.Background(), domain.PushSubscription{}, []byte(`{}`))
 	if !result.Accepted || result.Err != nil || result.Gone {
 		t.Fatalf("stub result = %+v", result)
@@ -100,12 +101,36 @@ func TestVAPIDDelivererMapsStatusCodes(t *testing.T) {
 			if got.Accepted != tc.want.Accepted || got.Gone != tc.want.Gone {
 				t.Fatalf("got %+v want %+v", got, tc.want)
 			}
-			if tc.want.Accepted || tc.want.Gone {
-				if got.Err != nil {
-					t.Fatalf("unexpected err: %v", got.Err)
-				}
+			if (tc.want.Accepted || tc.want.Gone) && got.Err != nil {
+				t.Fatalf("unexpected err: %v", got.Err)
 			}
 		})
+	}
+}
+
+func TestVAPIDDelivererRejectsDisallowedEndpointWithoutHTTP(t *testing.T) {
+	t.Parallel()
+	pub, priv := mustVAPIDKeys(t)
+	p256dh, auth := mustSubscriptionKeys(t)
+	called := false
+	client := roundTripFunc(func(*http.Request) (*http.Response, error) {
+		called = true
+		return nil, errors.New("should not call network")
+	})
+	d, err := push.NewVAPIDDeliverer(pub, priv, "mailto:ops@example.com", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := d.Deliver(context.Background(), domain.PushSubscription{
+		Endpoint: "https://evil.example/push",
+		P256dh:   p256dh,
+		Auth:     auth,
+	}, []byte(`{"title":"t"}`))
+	if called {
+		t.Fatal("disallowed endpoint must not hit HTTP client")
+	}
+	if got.Err == nil || got.Accepted || got.Gone {
+		t.Fatalf("got %+v", got)
 	}
 }
 
@@ -138,9 +163,14 @@ func TestVAPIDDelivererMapsServerError(t *testing.T) {
 	}
 }
 
-func TestVAPIDDelivererRequiresKeys(t *testing.T) {
+func TestVAPIDDelivererRequiresKeysAndSubject(t *testing.T) {
 	t.Parallel()
 	_, err := push.NewVAPIDDeliverer("", "priv", "mailto:x@y.z", nil)
+	if !errors.Is(err, push.ErrPushDisabled) {
+		t.Fatalf("err = %v", err)
+	}
+	pub, priv := mustVAPIDKeys(t)
+	_, err = push.NewVAPIDDeliverer(pub, priv, "", nil)
 	if !errors.Is(err, push.ErrPushDisabled) {
 		t.Fatalf("err = %v", err)
 	}

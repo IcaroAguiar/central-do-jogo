@@ -221,6 +221,17 @@ func (s *PushStore) MarkOutboxAccepted(ctx context.Context, id domain.ID, now ti
 	return nil
 }
 
+// UpdateOutboxPayload persists progress fields (e.g. deliveredEndpoints) without changing status.
+func (s *PushStore) UpdateOutboxPayload(ctx context.Context, id domain.ID, payload []byte, now time.Time) error {
+	_, err := s.pool.Exec(ctx, `
+		UPDATE push_outbox SET payload = $2, updated_at = $3 WHERE id = $1`,
+		id.String(), payload, now.UTC())
+	if err != nil {
+		return fmt.Errorf("update push outbox payload: %w", err)
+	}
+	return nil
+}
+
 // MarkOutboxFailure increments attempts and sets failed/dead.
 func (s *PushStore) MarkOutboxFailure(ctx context.Context, id domain.ID, lastError string, now time.Time) error {
 	_, err := s.pool.Exec(ctx, `

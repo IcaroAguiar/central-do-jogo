@@ -2,6 +2,7 @@ package push
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +24,15 @@ type VAPIDDeliverer struct {
 	client     webpush.HTTPClient
 }
 
+// DelivererForConfig returns StubDeliverer when push is disabled, otherwise a
+// fail-closed VAPID deliverer (worker and smoke CLI share this wiring).
+func DelivererForConfig(enabled bool, publicKey, privateKey, subject string, client webpush.HTTPClient) (Deliverer, error) {
+	if !enabled {
+		return StubDeliverer{}, nil
+	}
+	return NewVAPIDDeliverer(publicKey, privateKey, subject, client)
+}
+
 // NewVAPIDDeliverer builds a real push-network deliverer. subject should be a
 // mailto: or https: contact URI embedded in the VAPID JWT.
 func NewVAPIDDeliverer(publicKey, privateKey, subject string, client webpush.HTTPClient) (*VAPIDDeliverer, error) {
@@ -33,10 +43,10 @@ func NewVAPIDDeliverer(publicKey, privateKey, subject string, client webpush.HTT
 		return nil, fmt.Errorf("%w: VAPID keys required", ErrPushDisabled)
 	}
 	if subject == "" {
-		subject = "mailto:ops@centraldojogo.local"
+		return nil, fmt.Errorf("%w: VAPID subject required", ErrPushDisabled)
 	}
 	if client == nil {
-		client = &http.Client{Timeout: defaultPushHTTPTimeout}
+		client = defaultPushHTTPClient()
 	}
 	return &VAPIDDeliverer{
 		publicKey:  publicKey,
@@ -47,14 +57,19 @@ func NewVAPIDDeliverer(publicKey, privateKey, subject string, client webpush.HTT
 	}, nil
 }
 
-// NewDeliverer returns a VAPID deliverer when keys are present, otherwise StubDeliverer.
-// Prefer NewVAPIDDeliverer when PushEnabled is true so misconfiguration fails closed.
-func NewDeliverer(publicKey, privateKey, subject string, client webpush.HTTPClient) Deliverer {
-	d, err := NewVAPIDDeliverer(publicKey, privateKey, subject, client)
-	if err != nil {
-		return StubDeliverer{}
+func defaultPushHTTPClient() *http.Client {
+	return &http.Client{
+		Timeout: defaultPushHTTPTimeout,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 3 {
+				return errors.New("too many push redirects")
+			}
+			if _, err := validatePushEndpointURL(req.URL.String()); err != nil {
+				return fmt.Errorf("push redirect blocked: %w", err)
+			}
+			return nil
+		},
 	}
-	return d
 }
 
 // Deliver implements Deliverer against the subscription's push service endpoint.
@@ -86,10 +101,10 @@ func (d *VAPIDDeliverer) Deliver(ctx context.Context, sub domain.PushSubscriptio
 	defer func() { _ = resp.Body.Close() }()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 
-	switch {
-	case resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusCreated, http.StatusOK:
 		return DeliveryResult{Accepted: true}
-	case resp.StatusCode == http.StatusGone || resp.StatusCode == http.StatusNotFound:
+	case http.StatusGone, http.StatusNotFound:
 		return DeliveryResult{Gone: true}
 	default:
 		return DeliveryResult{

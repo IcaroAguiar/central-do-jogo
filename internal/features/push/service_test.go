@@ -121,6 +121,17 @@ func (m *memPush) GetOutboxByIdempotencyKey(_ context.Context, key string) (*dom
 	return &cp, nil
 }
 
+func (m *memPush) UpdateOutboxPayload(_ context.Context, id domain.ID, payload []byte, now time.Time) error {
+	for k, e := range m.outbox {
+		if e.ID == id {
+			e.Payload = append([]byte(nil), payload...)
+			e.UpdatedAt = now
+			m.outbox[k] = e
+		}
+	}
+	return nil
+}
+
 func (m *memPush) MarkOutboxAccepted(_ context.Context, id domain.ID, now time.Time) error {
 	for k, e := range m.outbox {
 		if e.ID == id {
@@ -319,6 +330,41 @@ func TestDeliverPartialFailureDoesNotAccept(t *testing.T) {
 	if got.Status == domain.PushOutboxAccepted {
 		t.Fatalf("partial failure must not accept")
 	}
+	var body map[string]any
+	if err := json.Unmarshal(got.Payload, &body); err != nil {
+		t.Fatal(err)
+	}
+	delivered, _ := body["deliveredEndpoints"].([]any)
+	if len(delivered) != 1 || delivered[0] != "https://fcm.googleapis.com/fcm/send/ok" {
+		t.Fatalf("deliveredEndpoints = %#v", body["deliveredEndpoints"])
+	}
+
+	// Retry must not re-deliver the already-accepted endpoint.
+	counting := &countingDeliverer{failEndpoint: "https://fcm.googleapis.com/fcm/send/bad"}
+	runner = push.NewOutboxRunner(repo, repo, counting, true, func() time.Time { return now })
+	_ = runner.DeliverOutbox(context.Background(), entry.IdempotencyKey)
+	if counting.hits["https://fcm.googleapis.com/fcm/send/ok"] != 0 {
+		t.Fatalf("retry re-delivered ok endpoint: %#v", counting.hits)
+	}
+	if counting.hits["https://fcm.googleapis.com/fcm/send/bad"] != 1 {
+		t.Fatalf("retry should attempt failed endpoint once: %#v", counting.hits)
+	}
+}
+
+type countingDeliverer struct {
+	failEndpoint string
+	hits         map[string]int
+}
+
+func (c *countingDeliverer) Deliver(_ context.Context, sub domain.PushSubscription, _ []byte) push.DeliveryResult {
+	if c.hits == nil {
+		c.hits = map[string]int{}
+	}
+	c.hits[sub.Endpoint]++
+	if sub.Endpoint == c.failEndpoint {
+		return push.DeliveryResult{Err: errors.New("temporary failure")}
+	}
+	return push.DeliveryResult{Accepted: true}
 }
 
 type captureDeliverer struct {
