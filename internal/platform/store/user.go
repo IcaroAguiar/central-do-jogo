@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
@@ -54,6 +55,23 @@ func (s *UserStore) GetByID(ctx context.Context, id domain.ID) (*domain.User, er
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get user by id: %w", err)
+	}
+	return user, nil
+}
+
+// GetByEmail returns the user with the given email (case-insensitive), or nil.
+func (s *UserStore) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil, nil
+	}
+	row := s.pool.QueryRow(ctx, `SELECT `+userColumns+` FROM users WHERE lower(email) = lower($1)`, email)
+	user, err := scanUser(row)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("get user by email: %w", err)
 	}
 	return user, nil
 }

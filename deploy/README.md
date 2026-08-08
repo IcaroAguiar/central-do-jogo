@@ -103,7 +103,20 @@ To enable:
 4. Serve over HTTPS so browsers allow PushManager (local http exceptions vary).
 
 The UI asks for notification permission only after the visitor follows a club
-(favorite or primary). Delivery uses a stub accept path in the worker until a
-real webpush sender is wired; expired endpoints are disabled on Gone and purged
-by `push.cleanup_expired` jobs.
+(favorite or primary). When VAPID keys are set, the worker delivers through the
+real Web Push network (`SherClockHolmes/webpush-go`). Expired endpoints return
+Gone and are disabled, then purged by `push.cleanup_expired` jobs.
+
+### Local smoke (after subscribe in the browser)
+
+```bash
+# Synchronous deliver (no worker required):
+go run ./cmd/pushsmoke -email=you@example.com
+
+# Or enqueue for the running worker:
+go run ./cmd/pushsmoke -user-id=usr_... -via-job
+```
+
+Optional flags: `-title`, `-body`, `-url`, `-match-id`, `-version`.
+
 
