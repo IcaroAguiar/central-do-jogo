@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 concurrency:
@@ -125,7 +125,7 @@ jobs:
           nohup go run ./cmd/server > server.log 2>&1 &
           echo $! > server.pid
       - name: Wait for server
-        run: npx --yes wait-on http://127.0.0.1:8080/healthz
+        run: npx --yes wait-on -t 180000 http://127.0.0.1:8080/healthz
       - name: Install Playwright browsers
         working-directory: web
         run: pnpm exec playwright install --with-deps chromium
@@ -140,7 +140,7 @@ jobs:
           path: |
             e2e/public/playwright-report
             e2e/public/test-results
-          if-no-files-found: ignore
+          if-no-files-found: warn
           retention-days: 14
       - name: Server logs
         if: always()

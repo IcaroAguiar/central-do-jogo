@@ -34,7 +34,8 @@ On every PR and on `main`:
 - Docker image build
 - **E2E public smoke** (Playwright against seeded Postgres + Go SSR)
 
-Upload Playwright HTML report + traces on failure as CI artifacts.
+CI always uploads Playwright HTML report + `test-results` (traces/screenshots
+are retained on failure) as workflow artifacts.
 
 Phase-specific extras (auth login, admin, beta denominators) are tracked in
 the checklists and TASK-033…036; they are not optional forever — they are
