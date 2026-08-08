@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -295,6 +294,9 @@ func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, ver
 
 // DeliverOutbox fans out one outbox payload only to the listed recipient users.
 func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string) error {
+	if !r.enabled {
+		return ErrPushDisabled
+	}
 	entry, err := r.outbox.GetOutboxByIdempotencyKey(ctx, idempotencyKey)
 	if err != nil {
 		return err
@@ -392,9 +394,8 @@ func normalizeSubscribe(in SubscribeInput) (SubscribeInput, error) {
 	if in.Endpoint == "" || in.P256dh == "" || in.Auth == "" {
 		return SubscribeInput{}, ErrInvalidSubscription
 	}
-	u, err := url.Parse(in.Endpoint)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		return SubscribeInput{}, fmt.Errorf("%w: endpoint must be an absolute http(s) URL", ErrInvalidSubscription)
+	if _, err := validatePushEndpointURL(in.Endpoint); err != nil {
+		return SubscribeInput{}, err
 	}
 	if len(in.Endpoint) > 2048 || len(in.P256dh) > 512 || len(in.Auth) > 512 {
 		return SubscribeInput{}, fmt.Errorf("%w: field too long", ErrInvalidSubscription)

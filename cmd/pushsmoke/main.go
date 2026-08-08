@@ -81,7 +81,10 @@ func run() error {
 		ver = time.Now().UTC().Format("20060102T150405")
 	}
 
-	deliverer := push.NewDeliverer(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	deliverer, err := push.NewVAPIDDeliverer(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	if err != nil {
+		return fmt.Errorf("configure push deliverer: %w", err)
+	}
 	runner := push.NewOutboxRunner(pushStore, pushStore, deliverer, true, time.Now)
 
 	entry, err := runner.EnqueueAlert(ctx, *matchID, domain.PushAlertSmokeTest, ver, []string{target.ID.String()}, push.AlertContent{

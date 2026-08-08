@@ -6,10 +6,13 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	webpush "github.com/SherClockHolmes/webpush-go"
 )
+
+const defaultPushHTTPTimeout = 20 * time.Second
 
 // VAPIDDeliverer sends encrypted Web Push notifications (REQ-011 / REQ-025).
 type VAPIDDeliverer struct {
@@ -32,6 +35,9 @@ func NewVAPIDDeliverer(publicKey, privateKey, subject string, client webpush.HTT
 	if subject == "" {
 		subject = "mailto:ops@centraldojogo.local"
 	}
+	if client == nil {
+		client = &http.Client{Timeout: defaultPushHTTPTimeout}
+	}
 	return &VAPIDDeliverer{
 		publicKey:  publicKey,
 		privateKey: privateKey,
@@ -42,6 +48,7 @@ func NewVAPIDDeliverer(publicKey, privateKey, subject string, client webpush.HTT
 }
 
 // NewDeliverer returns a VAPID deliverer when keys are present, otherwise StubDeliverer.
+// Prefer NewVAPIDDeliverer when PushEnabled is true so misconfiguration fails closed.
 func NewDeliverer(publicKey, privateKey, subject string, client webpush.HTTPClient) Deliverer {
 	d, err := NewVAPIDDeliverer(publicKey, privateKey, subject, client)
 	if err != nil {
@@ -54,6 +61,9 @@ func NewDeliverer(publicKey, privateKey, subject string, client webpush.HTTPClie
 func (d *VAPIDDeliverer) Deliver(ctx context.Context, sub domain.PushSubscription, payload []byte) DeliveryResult {
 	if d == nil {
 		return DeliveryResult{Err: ErrPushDisabled}
+	}
+	if _, err := validatePushEndpointURL(sub.Endpoint); err != nil {
+		return DeliveryResult{Err: err}
 	}
 	subscription := &webpush.Subscription{
 		Endpoint: sub.Endpoint,

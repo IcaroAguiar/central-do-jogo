@@ -49,7 +49,14 @@ func run() error {
 	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
 	pushStore := store.NewPushStore(pool)
-	deliverer := push.NewDeliverer(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	var deliverer push.Deliverer = push.StubDeliverer{}
+	if cfg.PushEnabled {
+		d, err := push.NewVAPIDDeliverer(cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+		if err != nil {
+			return fmt.Errorf("configure push deliverer: %w", err)
+		}
+		deliverer = d
+	}
 	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.PushEnabled, nil)
 
 	handlers := jobs.HandlerRegistry{

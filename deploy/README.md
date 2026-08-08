@@ -103,9 +103,10 @@ To enable:
 4. Serve over HTTPS so browsers allow PushManager (local http exceptions vary).
 
 The UI asks for notification permission only after the visitor follows a club
-(favorite or primary). When VAPID keys are set, the worker delivers through the
-real Web Push network (`SherClockHolmes/webpush-go`). Expired endpoints return
-Gone and are disabled, then purged by `push.cleanup_expired` jobs.
+(favorite or primary). When VAPID keys are set, the worker delivers through the real Web Push network
+(`SherClockHolmes/webpush-go`) only to allowlisted push hosts (FCM, Mozilla,
+Apple, WNS). Subscription intake rejects non-HTTPS and unknown hosts. Expired
+endpoints return Gone and are disabled, then purged by `push.cleanup_expired`.
 
 ### Local smoke (after subscribe in the browser)
 

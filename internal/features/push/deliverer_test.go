@@ -78,7 +78,7 @@ func TestVAPIDDelivererMapsStatusCodes(t *testing.T) {
 				if req.Method != http.MethodPost {
 					t.Fatalf("method = %s", req.Method)
 				}
-				if !strings.HasPrefix(req.URL.String(), "https://push.example/") {
+				if !strings.HasPrefix(req.URL.String(), "https://fcm.googleapis.com/") {
 					t.Fatalf("endpoint = %s", req.URL)
 				}
 				return &http.Response{
@@ -93,7 +93,7 @@ func TestVAPIDDelivererMapsStatusCodes(t *testing.T) {
 				t.Fatal(err)
 			}
 			got := d.Deliver(context.Background(), domain.PushSubscription{
-				Endpoint: "https://push.example/endpoint",
+				Endpoint: "https://fcm.googleapis.com/fcm/send/endpoint",
 				P256dh:   p256dh,
 				Auth:     auth,
 			}, []byte(`{"title":"t"}`))
@@ -126,7 +126,7 @@ func TestVAPIDDelivererMapsServerError(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := d.Deliver(context.Background(), domain.PushSubscription{
-		Endpoint: "https://push.example/endpoint",
+		Endpoint: "https://fcm.googleapis.com/fcm/send/endpoint",
 		P256dh:   p256dh,
 		Auth:     auth,
 	}, []byte(`{"title":"t"}`))
