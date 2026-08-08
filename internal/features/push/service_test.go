@@ -121,6 +121,17 @@ func (m *memPush) GetOutboxByIdempotencyKey(_ context.Context, key string) (*dom
 	return &cp, nil
 }
 
+func (m *memPush) UpdateOutboxPayload(_ context.Context, id domain.ID, payload []byte, now time.Time) error {
+	for k, e := range m.outbox {
+		if e.ID == id {
+			e.Payload = append([]byte(nil), payload...)
+			e.UpdatedAt = now
+			m.outbox[k] = e
+		}
+	}
+	return nil
+}
+
 func (m *memPush) MarkOutboxAccepted(_ context.Context, id domain.ID, now time.Time) error {
 	for k, e := range m.outbox {
 		if e.ID == id {
@@ -178,7 +189,7 @@ func TestSubscribeRequiresAuthAndValidEndpoint(t *testing.T) {
 		time.Now,
 	)
 	_, err := svc.Subscribe(context.Background(), "tok", push.SubscribeInput{
-		Endpoint: "https://push.example/1", P256dh: "k", Auth: "a",
+		Endpoint: "https://fcm.googleapis.com/fcm/send/1", P256dh: "k", Auth: "a",
 	})
 	if !errors.Is(err, push.ErrUnauthorized) {
 		t.Fatalf("err = %v", err)
@@ -203,8 +214,8 @@ func TestSubscribeRejectsEndpointOwnedByAnotherUser(t *testing.T) {
 	t.Parallel()
 	repo := newMemPush()
 	now := time.Date(2026, 8, 3, 15, 0, 0, 0, time.UTC)
-	repo.subs["https://push.example/shared"] = domain.PushSubscription{
-		ID: "psub_a", UserID: "u1", Endpoint: "https://push.example/shared",
+	repo.subs["https://fcm.googleapis.com/fcm/send/shared"] = domain.PushSubscription{
+		ID: "psub_a", UserID: "u1", Endpoint: "https://fcm.googleapis.com/fcm/send/shared",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
 	svc := push.NewService(
@@ -215,12 +226,12 @@ func TestSubscribeRejectsEndpointOwnedByAnotherUser(t *testing.T) {
 		func() time.Time { return now },
 	)
 	_, err := svc.Subscribe(context.Background(), "tok", push.SubscribeInput{
-		Endpoint: "https://push.example/shared", P256dh: "k2", Auth: "a2",
+		Endpoint: "https://fcm.googleapis.com/fcm/send/shared", P256dh: "k2", Auth: "a2",
 	})
 	if !errors.Is(err, push.ErrEndpointOwned) {
 		t.Fatalf("err = %v", err)
 	}
-	if repo.subs["https://push.example/shared"].UserID != "u1" {
+	if repo.subs["https://fcm.googleapis.com/fcm/send/shared"].UserID != "u1" {
 		t.Fatalf("owner changed")
 	}
 }
@@ -239,7 +250,7 @@ func TestEnqueueIdempotentAndDeliverDisablesGone(t *testing.T) {
 	)
 	runner := push.NewOutboxRunner(repo, repo, goneDeliverer{}, true, func() time.Time { return now })
 	_, err := svc.Subscribe(context.Background(), "tok", push.SubscribeInput{
-		Endpoint: "https://push.example/gone", P256dh: "k", Auth: "a",
+		Endpoint: "https://fcm.googleapis.com/fcm/send/gone", P256dh: "k", Auth: "a",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -268,12 +279,12 @@ func TestDeliverRequiresAudienceAndDoesNotGlobalFanOut(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
 	repo := newMemPush()
-	repo.subs["https://push.example/a"] = domain.PushSubscription{
-		ID: "psub_a", UserID: "u1", Endpoint: "https://push.example/a",
+	repo.subs["https://fcm.googleapis.com/fcm/send/a"] = domain.PushSubscription{
+		ID: "psub_a", UserID: "u1", Endpoint: "https://fcm.googleapis.com/fcm/send/a",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
-	repo.subs["https://push.example/b"] = domain.PushSubscription{
-		ID: "psub_b", UserID: "u2", Endpoint: "https://push.example/b",
+	repo.subs["https://fcm.googleapis.com/fcm/send/b"] = domain.PushSubscription{
+		ID: "psub_b", UserID: "u2", Endpoint: "https://fcm.googleapis.com/fcm/send/b",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
 	runner := push.NewOutboxRunner(repo, repo, push.StubDeliverer{}, true, func() time.Time { return now })
@@ -298,15 +309,15 @@ func TestDeliverPartialFailureDoesNotAccept(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 3, 17, 0, 0, 0, time.UTC)
 	repo := newMemPush()
-	repo.subs["https://push.example/ok"] = domain.PushSubscription{
-		ID: "psub_ok", UserID: "u1", Endpoint: "https://push.example/ok",
+	repo.subs["https://fcm.googleapis.com/fcm/send/ok"] = domain.PushSubscription{
+		ID: "psub_ok", UserID: "u1", Endpoint: "https://fcm.googleapis.com/fcm/send/ok",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
-	repo.subs["https://push.example/bad"] = domain.PushSubscription{
-		ID: "psub_bad", UserID: "u1", Endpoint: "https://push.example/bad",
+	repo.subs["https://fcm.googleapis.com/fcm/send/bad"] = domain.PushSubscription{
+		ID: "psub_bad", UserID: "u1", Endpoint: "https://fcm.googleapis.com/fcm/send/bad",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
-	runner := push.NewOutboxRunner(repo, repo, partialFailDeliverer{failEndpoint: "https://push.example/bad"}, true, func() time.Time { return now })
+	runner := push.NewOutboxRunner(repo, repo, partialFailDeliverer{failEndpoint: "https://fcm.googleapis.com/fcm/send/bad"}, true, func() time.Time { return now })
 	entry, err := runner.EnqueueAlert(context.Background(), "mtc_2", domain.PushAlertLineupOfficial, "v1", []string{"u1"}, push.AlertContent{})
 	if err != nil {
 		t.Fatal(err)
@@ -319,6 +330,41 @@ func TestDeliverPartialFailureDoesNotAccept(t *testing.T) {
 	if got.Status == domain.PushOutboxAccepted {
 		t.Fatalf("partial failure must not accept")
 	}
+	var body map[string]any
+	if err := json.Unmarshal(got.Payload, &body); err != nil {
+		t.Fatal(err)
+	}
+	delivered, _ := body["deliveredEndpoints"].([]any)
+	if len(delivered) != 1 || delivered[0] != "https://fcm.googleapis.com/fcm/send/ok" {
+		t.Fatalf("deliveredEndpoints = %#v", body["deliveredEndpoints"])
+	}
+
+	// Retry must not re-deliver the already-accepted endpoint.
+	counting := &countingDeliverer{failEndpoint: "https://fcm.googleapis.com/fcm/send/bad"}
+	runner = push.NewOutboxRunner(repo, repo, counting, true, func() time.Time { return now })
+	_ = runner.DeliverOutbox(context.Background(), entry.IdempotencyKey)
+	if counting.hits["https://fcm.googleapis.com/fcm/send/ok"] != 0 {
+		t.Fatalf("retry re-delivered ok endpoint: %#v", counting.hits)
+	}
+	if counting.hits["https://fcm.googleapis.com/fcm/send/bad"] != 1 {
+		t.Fatalf("retry should attempt failed endpoint once: %#v", counting.hits)
+	}
+}
+
+type countingDeliverer struct {
+	failEndpoint string
+	hits         map[string]int
+}
+
+func (c *countingDeliverer) Deliver(_ context.Context, sub domain.PushSubscription, _ []byte) push.DeliveryResult {
+	if c.hits == nil {
+		c.hits = map[string]int{}
+	}
+	c.hits[sub.Endpoint]++
+	if sub.Endpoint == c.failEndpoint {
+		return push.DeliveryResult{Err: errors.New("temporary failure")}
+	}
+	return push.DeliveryResult{Accepted: true}
 }
 
 type captureDeliverer struct {
@@ -335,8 +381,8 @@ func TestDeliverOmitsAudienceFromClientPayload(t *testing.T) {
 	t.Parallel()
 	now := time.Date(2026, 8, 3, 18, 0, 0, 0, time.UTC)
 	repo := newMemPush()
-	repo.subs["https://push.example/a"] = domain.PushSubscription{
-		ID: "psub_a", UserID: "u1", Endpoint: "https://push.example/a",
+	repo.subs["https://fcm.googleapis.com/fcm/send/a"] = domain.PushSubscription{
+		ID: "psub_a", UserID: "u1", Endpoint: "https://fcm.googleapis.com/fcm/send/a",
 		P256dh: "k", Auth: "a", CreatedAt: now, LastSeenAt: now,
 	}
 	cap := &captureDeliverer{}

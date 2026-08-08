@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -53,6 +52,7 @@ type SubscriptionRepository interface {
 type OutboxRepository interface {
 	EnqueueOutbox(ctx context.Context, entry domain.PushOutboxEntry, now time.Time) (*domain.PushOutboxEntry, error)
 	GetOutboxByIdempotencyKey(ctx context.Context, key string) (*domain.PushOutboxEntry, error)
+	UpdateOutboxPayload(ctx context.Context, id domain.ID, payload []byte, now time.Time) error
 	MarkOutboxAccepted(ctx context.Context, id domain.ID, now time.Time) error
 	MarkOutboxFailure(ctx context.Context, id domain.ID, lastError string, now time.Time) error
 }
@@ -94,10 +94,11 @@ type AlertContent struct {
 
 // alertPayload is the JSON shape stored in push_outbox.payload (server-side).
 type alertPayload struct {
-	UserIDs []string `json:"userIds"`
-	Title   string   `json:"title,omitempty"`
-	Body    string   `json:"body,omitempty"`
-	URL     string   `json:"url,omitempty"`
+	UserIDs            []string `json:"userIds"`
+	Title              string   `json:"title,omitempty"`
+	Body               string   `json:"body,omitempty"`
+	URL                string   `json:"url,omitempty"`
+	DeliveredEndpoints []string `json:"deliveredEndpoints,omitempty"`
 }
 
 // clientNotification is the JSON delivered to browser endpoints (REQ-011).
@@ -295,6 +296,9 @@ func (r *OutboxRunner) EnqueueAlert(ctx context.Context, matchID, alertType, ver
 
 // DeliverOutbox fans out one outbox payload only to the listed recipient users.
 func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string) error {
+	if !r.enabled {
+		return ErrPushDisabled
+	}
 	entry, err := r.outbox.GetOutboxByIdempotencyKey(ctx, idempotencyKey)
 	if err != nil {
 		return err
@@ -325,6 +329,11 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 		return err
 	}
 
+	delivered := map[string]struct{}{}
+	for _, endpoint := range parsed.DeliveredEndpoints {
+		delivered[endpoint] = struct{}{}
+	}
+
 	var targets []domain.PushSubscription
 	for _, uid := range parsed.UserIDs {
 		list, err := r.subs.ListActiveByUser(ctx, domain.ID(uid))
@@ -337,6 +346,9 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 
 	var firstErr error
 	for _, sub := range targets {
+		if _, ok := delivered[sub.Endpoint]; ok {
+			continue
+		}
 		result := r.deliver.Deliver(ctx, sub, clientPayload)
 		if result.Gone {
 			_ = r.subs.DisableByEndpoint(ctx, sub.Endpoint, r.now())
@@ -350,6 +362,18 @@ func (r *OutboxRunner) DeliverOutbox(ctx context.Context, idempotencyKey string)
 				}
 			}
 			continue
+		}
+		parsed.DeliveredEndpoints = append(parsed.DeliveredEndpoints, sub.Endpoint)
+		delivered[sub.Endpoint] = struct{}{}
+		raw, err := json.Marshal(parsed)
+		if err != nil {
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		if err := r.outbox.UpdateOutboxPayload(ctx, entry.ID, raw, r.now()); err != nil && firstErr == nil {
+			firstErr = err
 		}
 	}
 	if firstErr != nil {
@@ -392,9 +416,8 @@ func normalizeSubscribe(in SubscribeInput) (SubscribeInput, error) {
 	if in.Endpoint == "" || in.P256dh == "" || in.Auth == "" {
 		return SubscribeInput{}, ErrInvalidSubscription
 	}
-	u, err := url.Parse(in.Endpoint)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
-		return SubscribeInput{}, fmt.Errorf("%w: endpoint must be an absolute http(s) URL", ErrInvalidSubscription)
+	if _, err := validatePushEndpointURL(in.Endpoint); err != nil {
+		return SubscribeInput{}, err
 	}
 	if len(in.Endpoint) > 2048 || len(in.P256dh) > 512 || len(in.Auth) > 512 {
 		return SubscribeInput{}, fmt.Errorf("%w: field too long", ErrInvalidSubscription)

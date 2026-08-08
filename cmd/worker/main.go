@@ -49,7 +49,11 @@ func run() error {
 	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
 	pushStore := store.NewPushStore(pool)
-	pushRunner := push.NewOutboxRunner(pushStore, pushStore, push.StubDeliverer{}, cfg.PushEnabled, nil)
+	deliverer, err := push.DelivererForConfig(cfg.PushEnabled, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	if err != nil {
+		return fmt.Errorf("configure push deliverer: %w", err)
+	}
+	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.PushEnabled, nil)
 
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
@@ -64,7 +68,11 @@ func run() error {
 	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
 
 	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner)
-	logger.Info("worker started", "owner", owner, "handlers", len(handlers))
+	logger.Info("worker started",
+		"owner", owner,
+		"handlers", len(handlers),
+		"push_enabled", cfg.PushEnabled,
+	)
 
 	return worker.Run(ctx, logger)
 }

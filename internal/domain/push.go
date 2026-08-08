@@ -7,6 +7,7 @@ const (
 	PushAlertBroadcastConfirmed = "broadcast_confirmed"
 	PushAlertBroadcastChanged   = "broadcast_changed"
 	PushAlertLineupOfficial     = "lineup_official"
+	PushAlertSmokeTest          = "smoke_test"
 )
 
 // PushSubscription is a browser Push subscription bound to a user account.
