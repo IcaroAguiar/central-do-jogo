@@ -1,7 +1,7 @@
 # Latest QA smoke receipt
 
 - **Date:** 2026-08-08
-- **Branch / commit:** `chore/qa-evidence-pipeline` (SHA filled after commit)
+- **Branch / commit:** `chore/qa-evidence-pipeline` (6369688)
 - **Agent:** local verification for the QA evidence bridge
 - **Stack:** Compose `db` on `127.0.0.1:5433`, `go run ./cmd/server` on `:8080`, Playwright Chromium
 
