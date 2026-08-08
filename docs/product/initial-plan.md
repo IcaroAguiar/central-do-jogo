@@ -90,7 +90,7 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 | TASK-010 | Criar `api/openapi.yaml`, `internal/platform/http/router.go` e `web/src/api/generated/`; gerar/validar tipos do contrato REST sem publicar SLA externo. | x (contrato minimo `/healthz`) | 2026-07-31 |
 | TASK-011 | Criar `deploy/Dockerfile`, `deploy/compose.yaml`, `.env.example` e `deploy/README.md`; servir o build da PWA sem runtime Node e iniciar PostgreSQL com healthchecks. | x | 2026-07-31 |
 | TASK-012 | Criar `LICENSE`, `README.md`, `README.en.md`, `CONTRIBUTING.md`, `SECURITY.md` e `CODE_OF_CONDUCT.md` conforme CON-007 e CON-008. | x | 2026-07-31 |
-| TASK-013 | Criar `.github/workflows/ci.yml` com Go format/vet/lint/test/race, frontend lint/typecheck/unit, contrato OpenAPI e testes PostgreSQL/Playwright condicionados por escopo. | x (CI base; Playwright/Postgres de produto adiado) | 2026-07-31 |
+| TASK-013 | Criar `.github/workflows/ci.yml` com Go format/vet/lint/test/race, frontend lint/typecheck/unit, contrato OpenAPI e testes PostgreSQL/Playwright condicionados por escopo. | x (CI base; e2e publico obrigatorio a partir da ponte `docs/validation/`) | 2026-07-31 |
 
 ### Implementation Phase 2 - Domain, persistence and ingestion
 
