@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func TestPreferencesStoreUpsertAndGet(t *testing.T) {

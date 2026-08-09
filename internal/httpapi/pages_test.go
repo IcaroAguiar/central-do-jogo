@@ -1,4 +1,4 @@
-package api_test
+package httpapi_test
 
 import (
 	"os"
@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/api"
+	"github.com/IcaroAguiar/central-do-jogo/internal/httpapi"
 	"gopkg.in/yaml.v3"
 )
 
@@ -32,7 +32,7 @@ func TestSSRPagesMatchOpenAPI(t *testing.T) {
 	if !ok {
 		t.Fatal("OpenAPI missing components.schemas.SSRPage")
 	}
-	want := api.AllSSRPages()
+	want := httpapi.AllSSRPages()
 	if len(schema.Enum) != len(want) {
 		t.Fatalf("SSRPage enum len = %d, want %d (%v vs %v)", len(schema.Enum), len(want), schema.Enum, want)
 	}
@@ -52,7 +52,7 @@ func TestSSRPagesMatchTypeScriptContract(t *testing.T) {
 	}
 	src := string(raw)
 	// Require exact key→value mappings so a swapped SSR_PAGE entry fails.
-	for _, page := range api.AllSSRPages() {
+	for _, page := range httpapi.AllSSRPages() {
 		pattern := regexp.MustCompile(`(?m)^\s*` + regexp.QuoteMeta(page) + `:\s*"` + regexp.QuoteMeta(page) + `"\s*,?\s*$`)
 		if !pattern.MatchString(src) {
 			t.Fatalf("web/src/lib/pages.ts missing exact SSR_PAGE mapping %s: %q", page, page)

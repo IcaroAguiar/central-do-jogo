@@ -7,30 +7,29 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/httpapi"
 )
 
-// MatchGetter is the subset of store.MatchStore consumed by this package,
+// MatchGetter is the match read port consumed by this package,
 // declared here so tests can supply a fake without a database.
 type MatchGetter interface {
-	GetBySlug(ctx context.Context, slug string) (*store.MatchRecord, error)
+	GetBySlug(ctx context.Context, slug string) (*domain.MatchRecord, error)
 }
 
-// BroadcastLister is the subset of store.BroadcastStore consumed by this package.
+// BroadcastLister is the broadcast read port consumed by this package.
 type BroadcastLister interface {
-	ListByMatch(ctx context.Context, matchID domain.ID) ([]store.BroadcastRecord, error)
+	ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.BroadcastRecord, error)
 }
 
-// LineupLister is the subset of store.LineupStore consumed by this package.
+// LineupLister is the lineup read port consumed by this package.
 type LineupLister interface {
 	ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.Lineup, error)
 }
 
-// NewsLister is the subset of store.NewsStore consumed by this package.
+// NewsLister is the news read port consumed by this package.
 type NewsLister interface {
-	ListByMatch(ctx context.Context, matchID domain.ID) ([]store.NewsRecord, error)
+	ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.NewsRecord, error)
 }
 
 // Service resolves match detail queries.
@@ -85,17 +84,17 @@ type NewsLinkView struct {
 
 // Detail is the JSON payload for GET /api/v1/matches/{slug}.
 type Detail struct {
-	Slug           string             `json:"slug"`
-	Round          string             `json:"round"`
-	Venue          string             `json:"venue"`
-	HomeClub       api.ClubRef        `json:"homeClub"`
-	AwayClub       api.ClubRef        `json:"awayClub"`
-	Competition    api.CompetitionRef `json:"competition"`
-	KickoffAt      *time.Time         `json:"kickoffAt"`
-	KickoffState   string             `json:"kickoffState"`
-	BroadcastState string             `json:"broadcastState"`
-	LineupState    string             `json:"lineupState"`
-	NewsState      string             `json:"newsState"`
+	Slug           string                 `json:"slug"`
+	Round          string                 `json:"round"`
+	Venue          string                 `json:"venue"`
+	HomeClub       httpapi.ClubRef        `json:"homeClub"`
+	AwayClub       httpapi.ClubRef        `json:"awayClub"`
+	Competition    httpapi.CompetitionRef `json:"competition"`
+	KickoffAt      *time.Time             `json:"kickoffAt"`
+	KickoffState   string                 `json:"kickoffState"`
+	BroadcastState string                 `json:"broadcastState"`
+	LineupState    string                 `json:"lineupState"`
+	NewsState      string                 `json:"newsState"`
 	// *LastAttemptAt surface the most recent refresh attempt even when it
 	// found nothing, per REQ-010 ("a ultima tentativa fica visivel").
 	BroadcastLastAttemptAt *time.Time      `json:"broadcastLastAttemptAt"`
@@ -133,9 +132,9 @@ func (s *Service) GetDetail(ctx context.Context, slug string) (*Detail, error) {
 		Slug:                   rec.Slug,
 		Round:                  rec.Round,
 		Venue:                  rec.Venue,
-		HomeClub:               api.ClubRefFromParts(rec.HomeClub.Slug, rec.HomeClub.Name, rec.HomeClub.ShortName),
-		AwayClub:               api.ClubRefFromParts(rec.AwayClub.Slug, rec.AwayClub.Name, rec.AwayClub.ShortName),
-		Competition:            api.CompetitionRef{Slug: rec.Competition.Slug, Name: rec.Competition.Name, Season: rec.Competition.Season},
+		HomeClub:               httpapi.ClubRefFromParts(rec.HomeClub.Slug, rec.HomeClub.Name, rec.HomeClub.ShortName),
+		AwayClub:               httpapi.ClubRefFromParts(rec.AwayClub.Slug, rec.AwayClub.Name, rec.AwayClub.ShortName),
+		Competition:            httpapi.CompetitionRef{Slug: rec.Competition.Slug, Name: rec.Competition.Name, Season: rec.Competition.Season},
 		KickoffAt:              rec.KickoffAt,
 		KickoffState:           string(rec.KickoffState),
 		BroadcastState:         string(rec.BroadcastState),
@@ -150,7 +149,7 @@ func (s *Service) GetDetail(ctx context.Context, slug string) (*Detail, error) {
 	}, nil
 }
 
-func broadcastViews(records []store.BroadcastRecord) []BroadcastView {
+func broadcastViews(records []domain.BroadcastRecord) []BroadcastView {
 	views := make([]BroadcastView, 0, len(records))
 	for _, b := range records {
 		views = append(views, BroadcastView{
@@ -186,7 +185,7 @@ func lineupViews(lineups []domain.Lineup) []LineupView {
 	return views
 }
 
-func newsViews(records []store.NewsRecord) []NewsLinkView {
+func newsViews(records []domain.NewsRecord) []NewsLinkView {
 	views := make([]NewsLinkView, 0, len(records))
 	for _, n := range records {
 		views = append(views, NewsLinkView{

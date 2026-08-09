@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func TestMatchStoreGetBySlug(t *testing.T) {

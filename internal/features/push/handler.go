@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
 )
@@ -78,7 +77,7 @@ func (h *Handlers) VAPIDPublicKey() http.Handler {
 func (h *Handlers) List() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		subs, err := h.svc.ListSubscriptions(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName))
+		subs, err := h.svc.ListSubscriptions(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName))
 		if writePushError(w, r, err) {
 			return
 		}
@@ -108,7 +107,7 @@ func (h *Handlers) Subscribe() http.Handler {
 			httpplatform.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid push subscription payload")
 			return
 		}
-		sub, err := h.svc.Subscribe(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), SubscribeInput{
+		sub, err := h.svc.Subscribe(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName), SubscribeInput{
 			Endpoint:  body.Endpoint,
 			P256dh:    body.Keys.P256dh,
 			Auth:      body.Keys.Auth,
@@ -139,7 +138,7 @@ func (h *Handlers) Unsubscribe() http.Handler {
 			httpplatform.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid unsubscribe payload")
 			return
 		}
-		err := h.svc.Unsubscribe(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), body.Endpoint)
+		err := h.svc.Unsubscribe(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName), body.Endpoint)
 		if writePushError(w, r, err) {
 			return
 		}

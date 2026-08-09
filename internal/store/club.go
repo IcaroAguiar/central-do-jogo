@@ -1,4 +1,4 @@
-// Package store implements read repositories over PostgreSQL for the public
+// Package store implements PostgreSQL persistence for public
 // search, clubs, and matches features. Repositories return domain types (or
 // small read-only records composed from them) and never leak SQL to callers.
 package store

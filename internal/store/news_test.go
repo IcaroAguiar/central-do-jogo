@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func TestNewsStoreListByMatchOrdersByPublishedAtDesc(t *testing.T) {

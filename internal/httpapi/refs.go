@@ -1,7 +1,7 @@
-// Package api holds shared public JSON DTOs and SSR page IDs that mirror
+// Package httpapi holds shared public JSON DTOs and SSR page IDs that mirror
 // api/openapi.yaml. Feature packages must reuse these types instead of
 // declaring parallel ClubRef / CompetitionRef / page string literals.
-package api
+package httpapi
 
 import "github.com/IcaroAguiar/central-do-jogo/internal/domain"
 
@@ -25,7 +25,7 @@ func ClubRefFromClub(c domain.Club) ClubRef {
 }
 
 // ClubRefFromParts builds a ClubRef from already-resolved public fields
-// (for example store ClubSummary slug/name/shortName without leaking IDs).
+// (for example domain ClubSummary slug/name/shortName without leaking IDs).
 func ClubRefFromParts(slug, name, shortName string) ClubRef {
 	return ClubRef{Slug: slug, Name: name, ShortName: shortName}
 }

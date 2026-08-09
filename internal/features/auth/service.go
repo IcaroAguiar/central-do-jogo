@@ -16,13 +16,14 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
+	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 )
 
 const (
 	ProviderGoogle = "google"
 
-	// SessionCookieName is the HttpOnly cookie carrying the opaque session token.
-	SessionCookieName = "cdj_session"
+	// SessionCookieName aliases the shared transport cookie name.
+	SessionCookieName = httpplatform.SessionCookieName
 	// OAuthStateCookieName carries the signed OAuth CSRF state.
 	OAuthStateCookieName = "cdj_oauth_state"
 
@@ -32,11 +33,17 @@ const (
 // ErrAuthDisabled is returned when OAuth credentials are not configured.
 var ErrAuthDisabled = errors.New("auth disabled")
 
+// ErrUnauthorized is returned when a session is required but missing.
+var ErrUnauthorized = errors.New("unauthorized")
+
 // ErrInvalidState is returned when the OAuth state cookie/query mismatch.
 var ErrInvalidState = errors.New("invalid oauth state")
 
 // ErrEmailUnverified is returned when the IdP identity lacks a verified email.
 var ErrEmailUnverified = errors.New("email not verified")
+
+// ErrForbidden is returned when the caller is authenticated but not allowed.
+var ErrForbidden = errors.New("forbidden")
 
 // Identity is a verified account identity from an OAuth provider.
 type Identity struct {
@@ -233,6 +240,18 @@ func (s *Service) Logout(ctx context.Context, sessionToken string) error {
 		return nil
 	}
 	return s.users.RevokeSession(ctx, hashToken(sessionToken), s.now().UTC())
+}
+
+// RequireMaintainer returns ErrUnauthorized when user is nil, ErrForbidden when
+// the user is not a maintainer, and nil when the allowlist grants access (REQ-018).
+func RequireMaintainer(user *domain.User) error {
+	if user == nil {
+		return ErrUnauthorized
+	}
+	if user.Role != domain.RoleMaintainer {
+		return ErrForbidden
+	}
+	return nil
 }
 
 // PostLoginRedirect returns the safe relative path after OAuth success.

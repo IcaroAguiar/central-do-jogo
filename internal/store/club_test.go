@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func TestClubStoreGetBySlug(t *testing.T) {

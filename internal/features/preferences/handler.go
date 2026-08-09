@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
 )
@@ -39,7 +38,7 @@ func NewHandlers(svc *Service) *Handlers {
 func (h *Handlers) Get() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
-		view, err := h.svc.Get(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName))
+		view, err := h.svc.Get(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName))
 		if writePrefsError(w, r, err) {
 			return
 		}
@@ -65,7 +64,7 @@ func (h *Handlers) Put() http.Handler {
 		if body.FavoriteClubSlugs == nil {
 			body.FavoriteClubSlugs = []string{}
 		}
-		view, err := h.svc.Put(r.Context(), httpplatform.CookieValue(r, auth.SessionCookieName), Update(body))
+		view, err := h.svc.Put(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName), Update(body))
 		if writePrefsError(w, r, err) {
 			return
 		}

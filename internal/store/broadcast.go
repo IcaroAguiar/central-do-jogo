@@ -8,12 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// BroadcastRecord is a broadcast joined with its evidence source display name.
-type BroadcastRecord struct {
-	domain.Broadcast
-	SourceDisplayName string
-}
-
 // BroadcastStore provides read access to match broadcasts.
 type BroadcastStore struct {
 	pool *pgxpool.Pool
@@ -26,7 +20,7 @@ func NewBroadcastStore(pool *pgxpool.Pool) *BroadcastStore {
 
 // ListByMatch returns all broadcasts for a match, ordered by confidence (high
 // first) then channel, with the source display name resolved via evidence.
-func (s *BroadcastStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]BroadcastRecord, error) {
+func (s *BroadcastStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.BroadcastRecord, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT
 			b.id, b.match_id, b.evidence_id, b.channel, b.platform, b.access, b.region,
@@ -45,9 +39,9 @@ func (s *BroadcastStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]
 	}
 	defer rows.Close()
 
-	var records []BroadcastRecord
+	var records []domain.BroadcastRecord
 	for rows.Next() {
-		var rec BroadcastRecord
+		var rec domain.BroadcastRecord
 		var id, matchIDCol, evidenceID string
 		if err := rows.Scan(
 			&id, &matchIDCol, &evidenceID, &rec.Channel, &rec.Platform, &rec.Access, &rec.Region,

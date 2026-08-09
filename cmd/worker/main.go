@@ -13,7 +13,7 @@ import (
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func main() {
@@ -49,11 +49,11 @@ func run() error {
 	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
 	pushStore := store.NewPushStore(pool)
-	deliverer, err := push.DelivererForConfig(cfg.PushEnabled, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	deliverer, err := push.DelivererForConfig(cfg.Push.Enabled, cfg.Push.VAPIDPublicKey, cfg.Push.VAPIDPrivateKey, cfg.Push.VAPIDSubject, nil)
 	if err != nil {
 		return fmt.Errorf("configure push deliverer: %w", err)
 	}
-	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.PushEnabled, nil)
+	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.Push.Enabled, nil)
 
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
@@ -71,7 +71,7 @@ func run() error {
 	logger.Info("worker started",
 		"owner", owner,
 		"handlers", len(handlers),
-		"push_enabled", cfg.PushEnabled,
+		"push_enabled", cfg.Push.Enabled,
 	)
 
 	return worker.Run(ctx, logger)

@@ -8,12 +8,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// NewsRecord is a news link joined with its source display name.
-type NewsRecord struct {
-	domain.NewsLink
-	SourceDisplayName string
-}
-
 // NewsStore provides read access to match news links.
 type NewsStore struct {
 	pool *pgxpool.Pool
@@ -29,7 +23,7 @@ const MaxNewsPerMatch = 5
 
 // ListByMatch returns up to MaxNewsPerMatch news links for a match, most
 // recently published first.
-func (s *NewsStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]NewsRecord, error) {
+func (s *NewsStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.NewsRecord, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT n.id, n.match_id, n.evidence_id, n.source_id, n.title, n.url,
 		       n.published_at, n.availability, n.created_at, n.updated_at, src.display_name
@@ -44,9 +38,9 @@ func (s *NewsStore) ListByMatch(ctx context.Context, matchID domain.ID) ([]NewsR
 	}
 	defer rows.Close()
 
-	var records []NewsRecord
+	var records []domain.NewsRecord
 	for rows.Next() {
-		var rec NewsRecord
+		var rec domain.NewsRecord
 		var id, matchIDCol, evidenceID, sourceID string
 		if err := rows.Scan(
 			&id, &matchIDCol, &evidenceID, &sourceID, &rec.Title, &rec.URL,

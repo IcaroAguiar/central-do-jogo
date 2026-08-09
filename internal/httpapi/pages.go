@@ -1,4 +1,4 @@
-package api
+package httpapi
 
 // SSR page discriminators embedded in #initial-data (PAT-004).
 // Values must stay identical to the OpenAPI SSRPage enum and web/src/lib/pages.ts.

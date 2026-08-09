@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/preferences"
+	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 )
 
 func TestPutRejectsMissingOrigin(t *testing.T) {
@@ -24,7 +24,7 @@ func TestPutRejectsMissingOrigin(t *testing.T) {
 	)
 	h := preferences.NewHandlers(svc)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/preferences", strings.NewReader(`{"favoriteClubSlugs":[]}`))
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "tok"})
+	req.AddCookie(&http.Cookie{Name: httpplatform.SessionCookieName, Value: "tok"})
 	w := httptest.NewRecorder()
 	h.Put().ServeHTTP(w, req)
 	if w.Code != http.StatusForbidden {
@@ -63,7 +63,7 @@ func TestPutHappyPath(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/preferences", strings.NewReader(body))
 	req.Header.Set("Origin", "http://127.0.0.1:8080")
 	req.Header.Set("Content-Type", "application/json")
-	req.AddCookie(&http.Cookie{Name: auth.SessionCookieName, Value: "tok"})
+	req.AddCookie(&http.Cookie{Name: httpplatform.SessionCookieName, Value: "tok"})
 	w := httptest.NewRecorder()
 	h.Put().ServeHTTP(w, req)
 	if w.Code != http.StatusOK {

@@ -11,30 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ClubSummary is a lightweight club projection embedded in match records.
-type ClubSummary struct {
-	ID        domain.ID
-	Slug      string
-	Name      string
-	ShortName string
-}
-
-// CompetitionSummary is a lightweight competition projection embedded in match records.
-type CompetitionSummary struct {
-	ID     domain.ID
-	Slug   string
-	Name   string
-	Season int
-}
-
-// MatchRecord is a match joined with its home/away club and competition summaries.
-type MatchRecord struct {
-	domain.Match
-	HomeClub    ClubSummary
-	AwayClub    ClubSummary
-	Competition CompetitionSummary
-}
-
 // MatchStore provides read access to matches.
 type MatchStore struct {
 	pool *pgxpool.Pool
@@ -62,8 +38,8 @@ const matchFromJoin = `
 	JOIN competitions c ON c.id = m.competition_id
 `
 
-func scanMatchRecord(row pgx.Row) (*MatchRecord, error) {
-	var rec MatchRecord
+func scanMatchRecord(row pgx.Row) (*domain.MatchRecord, error) {
+	var rec domain.MatchRecord
 	var id, competitionID, homeClubID, awayClubID string
 	var homeID, homeSlug, homeName, homeShort string
 	var awayID, awaySlug, awayName, awayShort string
@@ -83,8 +59,8 @@ func scanMatchRecord(row pgx.Row) (*MatchRecord, error) {
 	rec.CompetitionID = domain.ID(competitionID)
 	rec.HomeClubID = domain.ID(homeClubID)
 	rec.AwayClubID = domain.ID(awayClubID)
-	rec.HomeClub = ClubSummary{ID: domain.ID(homeID), Slug: homeSlug, Name: homeName, ShortName: homeShort}
-	rec.AwayClub = ClubSummary{ID: domain.ID(awayID), Slug: awaySlug, Name: awayName, ShortName: awayShort}
+	rec.HomeClub = domain.ClubSummary{ID: domain.ID(homeID), Slug: homeSlug, Name: homeName, ShortName: homeShort}
+	rec.AwayClub = domain.ClubSummary{ID: domain.ID(awayID), Slug: awaySlug, Name: awayName, ShortName: awayShort}
 	rec.Competition.ID = domain.ID(compID)
 	rec.Competition.Slug = compSlug
 	rec.Competition.Name = compName
@@ -100,7 +76,7 @@ func scanMatchRecord(row pgx.Row) (*MatchRecord, error) {
 
 // GetBySlug returns the match with the given slug joined with club and
 // competition summaries, or nil if none exists.
-func (s *MatchStore) GetBySlug(ctx context.Context, slug string) (*MatchRecord, error) {
+func (s *MatchStore) GetBySlug(ctx context.Context, slug string) (*domain.MatchRecord, error) {
 	row := s.pool.QueryRow(ctx, `SELECT `+matchSelectColumns+matchFromJoin+` WHERE m.slug = $1`, slug)
 	rec, err := scanMatchRecord(row)
 	if err != nil {
@@ -115,7 +91,7 @@ func (s *MatchStore) GetBySlug(ctx context.Context, slug string) (*MatchRecord, 
 // Search returns matches whose home/away club name, short name, round, or
 // slug match the query (case-insensitive substring), ordered by kickoff time
 // (soonest first, unscheduled last), limited to limit rows.
-func (s *MatchStore) Search(ctx context.Context, query string, limit int) ([]MatchRecord, error) {
+func (s *MatchStore) Search(ctx context.Context, query string, limit int) ([]domain.MatchRecord, error) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -140,7 +116,7 @@ func (s *MatchStore) Search(ctx context.Context, query string, limit int) ([]Mat
 // and end are both nil, all matches in the season are returned regardless of
 // whether the kickoff time is known; otherwise matches with an unknown
 // kickoff time are excluded since they cannot be placed in the range.
-func (s *MatchStore) ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]MatchRecord, error) {
+func (s *MatchStore) ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]domain.MatchRecord, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT `+matchSelectColumns+matchFromJoin+`
 		WHERE (m.home_club_id = $1 OR m.away_club_id = $1)
@@ -158,8 +134,8 @@ func (s *MatchStore) ListByClub(ctx context.Context, clubID domain.ID, season in
 	return collectMatchRecords(rows)
 }
 
-func collectMatchRecords(rows pgx.Rows) ([]MatchRecord, error) {
-	var records []MatchRecord
+func collectMatchRecords(rows pgx.Rows) ([]domain.MatchRecord, error) {
+	var records []domain.MatchRecord
 	for rows.Next() {
 		rec, err := scanMatchRecord(rows)
 		if err != nil {
