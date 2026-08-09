@@ -1,37 +1,31 @@
 # Latest QA smoke receipt
 
-- **Date:** 2026-08-08
-- **Branch / commit:** `chore/qa-evidence-pipeline` (6369688)
-- **Agent:** local verification for the QA evidence bridge
-- **Stack:** Compose `db` on `127.0.0.1:5433`, `go run ./cmd/server` on `:8080`, Playwright Chromium
+- **Date:** 2026-08-09
+- **Branch:** `cursor/phase4-structure-goal005-6a1d`
+- **Sources:**
+  1. GitHub Actions CI on PR #16 tip `2d97005` — [run 31295151575](https://github.com/IcaroAguiar/central-do-jogo/actions/runs/31295151575)
+  2. Local stack re-run (Postgres 17 `:5433`, seeded, auth-enabled `cmd/server`, Playwright) producing [`phase-4-evidence-pack.md`](./phase-4-evidence-pack.md)
 
 ## Commands
 
 | Gate | Command | Result |
 |------|---------|--------|
-| Go format | `test -z "$(gofmt -l ./cmd ./internal)"` | pass |
-| Go vet | `GOTOOLCHAIN=local go vet ./...` | pass |
-| Go tests | `GOTOOLCHAIN=local go test -race -count=1 ./...` (clean env, no `PUBLIC_BASE_URL`) | **pass** — 183 tests / 30 packages |
-| Web lint | `./node_modules/.bin/biome ci .` in `web/` | **pass** — 62 files |
-| Web typecheck | `cd web && pnpm typecheck` | pass |
-| Web unit | `cd web && pnpm test` | **pass** — 11 files / 36 tests |
-| Web build | `cd web && pnpm build` | pass |
-| OpenAPI | `npx @redocly/cli@1.34.5 lint api/openapi.yaml` | **pass** — valid, 5 existing warnings |
-| E2E public | seed + server + `cd web && pnpm e2e` | **pass** — 4/4 (smoke, offline, phase4 auth/me, phase4 vapid); re-run after option-button click harden also 4/4 |
+| Go Phase 4 features | `go test -count=1 -v ./internal/features/{privacy,admin,reports,auth,preferences,push}/...` | **pass** — see `assets/phase-4/phase4-go-tests.log` |
+| Web unit | `cd web && pnpm test` | **pass** — 14 files / 40 tests |
+| E2E public (local) | `E2E_BASE_URL=http://127.0.0.1:8080 pnpm e2e` | **pass** — 4/4 |
+| CI required-ci | Go / Web / OpenAPI / Docker / e2e-public on `2d97005` | **pass** |
+| UI + backend pack | Playwright screenshots + curl receipts | **captured** — `docs/validation/assets/phase-4/` |
 
-## E2E detail
+## E2E detail (local)
 
 ```
-✓ phase4-api › auth/me reports configuration without requiring a session
-✓ phase4-api › push vapid endpoint responds according to VAPID configuration
+✓ phase 4 API readiness › auth/me reports configuration without requiring a session
+✓ phase 4 API readiness › push vapid endpoint responds according to VAPID configuration
 ✓ offline resilience › shows cached club data and an offline banner…
 ✓ public smoke › search → club → match → share
-4 passed (11.3s)
+4 passed (2.1s)
 ```
 
-## Residuals
+## Residuals (dated 2026-08-09)
 
-- Auth / Push browser e2e still residual (TEST-011 / Push part of TEST-008) until TASK-035 or dedicated test credentials.
-- Postgres store integration tests still require a live DB locally; CI e2e brings its own Postgres service.
-- Beta denominators (TEST-015) remain Phase 5.
-- Local note: exporting `PUBLIC_BASE_URL` while running `go test` fails `TestLoadDefaults` (env pollution); CI Go job does not set that var.
+See [`phase-4-checklist.md`](./phase-4-checklist.md). Browser suites for admin, privacy journeys, full auth login, and Push-simulated e2e remain owned by **TASK-035** (Phase 5 / GOAL-006). Blocker for Google login e2e: stable test credentials not provisioned in CI.

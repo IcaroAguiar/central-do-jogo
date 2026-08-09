@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 type fakeClubSearcher struct {
@@ -23,11 +22,11 @@ func (f *fakeClubSearcher) Search(ctx context.Context, query string, limit int) 
 }
 
 type fakeMatchSearcher struct {
-	matches []store.MatchRecord
+	matches []domain.MatchRecord
 	err     error
 }
 
-func (f *fakeMatchSearcher) Search(ctx context.Context, query string, limit int) ([]store.MatchRecord, error) {
+func (f *fakeMatchSearcher) Search(ctx context.Context, query string, limit int) ([]domain.MatchRecord, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -38,11 +37,11 @@ func TestServiceSearchMapsClubsAndMatches(t *testing.T) {
 	t.Parallel()
 	kickoff := time.Date(2026, 8, 10, 21, 0, 0, 0, time.UTC)
 	clubs := &fakeClubSearcher{clubs: []domain.Club{{Slug: "flamengo", Name: "Flamengo", ShortName: "FLA"}}}
-	matches := &fakeMatchSearcher{matches: []store.MatchRecord{
+	matches := &fakeMatchSearcher{matches: []domain.MatchRecord{
 		{
 			Match:    domain.Match{Slug: "flamengo-x-vasco", Round: "R1", KickoffAt: &kickoff, KickoffState: domain.KickoffPublished},
-			HomeClub: store.ClubSummary{Slug: "flamengo", Name: "Flamengo", ShortName: "FLA"},
-			AwayClub: store.ClubSummary{Slug: "vasco", Name: "Vasco", ShortName: "VAS"},
+			HomeClub: domain.ClubSummary{Slug: "flamengo", Name: "Flamengo", ShortName: "FLA"},
+			AwayClub: domain.ClubSummary{Slug: "vasco", Name: "Vasco", ShortName: "VAS"},
 		},
 	}}
 

@@ -20,7 +20,7 @@ import (
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func main() {
@@ -45,7 +45,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
-	if !cfg.PushEnabled {
+	if !cfg.Push.Enabled {
 		return fmt.Errorf("web push is disabled: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY")
 	}
 
@@ -81,11 +81,11 @@ func run() error {
 		ver = time.Now().UTC().Format("20060102T150405")
 	}
 
-	deliverer, err := push.DelivererForConfig(true, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	deliverer, err := push.DelivererForConfig(true, cfg.Push.VAPIDPublicKey, cfg.Push.VAPIDPrivateKey, cfg.Push.VAPIDSubject, nil)
 	if err != nil {
 		return fmt.Errorf("configure push deliverer: %w", err)
 	}
-	runner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.PushEnabled, time.Now)
+	runner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.Push.Enabled, time.Now)
 
 	entry, err := runner.EnqueueAlert(ctx, *matchID, domain.PushAlertSmokeTest, ver, []string{target.ID.String()}, push.AlertContent{
 		Title: strings.TrimSpace(*title),

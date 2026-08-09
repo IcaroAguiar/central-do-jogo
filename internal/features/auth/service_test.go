@@ -300,6 +300,37 @@ func TestLogoutRejectsMissingOriginWhenBaseConfigured(t *testing.T) {
 	}
 }
 
+func TestServiceRequireMaintainer(t *testing.T) {
+	t.Parallel()
+	mem := newMem()
+	now := time.Date(2026, 8, 2, 12, 0, 0, 0, time.UTC)
+	svc := auth.NewService(mem, &fakeProvider{identity: auth.Identity{
+		Provider: auth.ProviderGoogle, Subject: "sub-gate", Email: "owner@example.com", EmailVerified: true,
+	}}, testCfg("owner@example.com"), func() time.Time { return now })
+
+	start, _ := svc.StartLogin()
+	result, err := svc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start.AuthURL), start.SignedStateCookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	user, err := svc.RequireMaintainer(context.Background(), result.SessionToken)
+	if err != nil || user == nil || user.Role != domain.RoleMaintainer {
+		t.Fatalf("user=%+v err=%v", user, err)
+	}
+
+	userSvc := auth.NewService(mem, &fakeProvider{identity: auth.Identity{
+		Provider: auth.ProviderGoogle, Subject: "sub-user", Email: "user@example.com", EmailVerified: true,
+	}}, testCfg("owner@example.com"), func() time.Time { return now })
+	start2, _ := userSvc.StartLogin()
+	result2, err := userSvc.CompleteLogin(context.Background(), "code", stateFromAuthURL(start2.AuthURL), start2.SignedStateCookie)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := userSvc.RequireMaintainer(context.Background(), result2.SessionToken); err != auth.ErrForbidden {
+		t.Fatalf("err = %v, want forbidden", err)
+	}
+}
+
 func TestLogoutRejectsForeignOrigin(t *testing.T) {
 	t.Parallel()
 	svc := auth.NewService(newMem(), &fakeProvider{identity: auth.Identity{

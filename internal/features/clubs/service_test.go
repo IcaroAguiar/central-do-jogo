@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 type fakeClubReader struct {
@@ -31,7 +30,7 @@ func (f *fakeClubReader) List(ctx context.Context) ([]domain.Club, error) {
 }
 
 type fakeMatchLister struct {
-	byClub map[domain.ID][]store.MatchRecord
+	byClub map[domain.ID][]domain.MatchRecord
 	err    error
 	// gotSeason/gotStart/gotEnd capture the last call's arguments for assertions.
 	gotSeason int
@@ -39,7 +38,7 @@ type fakeMatchLister struct {
 	gotEnd    *time.Time
 }
 
-func (f *fakeMatchLister) ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]store.MatchRecord, error) {
+func (f *fakeMatchLister) ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]domain.MatchRecord, error) {
 	f.gotSeason = season
 	f.gotStart = start
 	f.gotEnd = end
@@ -106,12 +105,12 @@ func TestGetMatchesPassesSeasonRangeAndMapsSummaries(t *testing.T) {
 	fixedNow := time.Date(2026, 3, 10, 12, 0, 0, 0, time.UTC)
 	club := &domain.Club{ID: "club_flamengo", Slug: "flamengo", Name: "Flamengo"}
 	kickoff := time.Date(2026, 3, 12, 20, 0, 0, 0, time.UTC)
-	matches := &fakeMatchLister{byClub: map[domain.ID][]store.MatchRecord{
+	matches := &fakeMatchLister{byClub: map[domain.ID][]domain.MatchRecord{
 		"club_flamengo": {
 			{
 				Match:    domain.Match{Slug: "flamengo-x-vasco", Round: "R1", Venue: "Maracanã", KickoffAt: &kickoff, KickoffState: domain.KickoffPublished, BroadcastState: domain.AvailabilityAvailable, LineupState: domain.AvailabilityAvailable, NewsState: domain.AvailabilityAvailable},
-				HomeClub: store.ClubSummary{Slug: "flamengo", Name: "Flamengo"},
-				AwayClub: store.ClubSummary{Slug: "vasco", Name: "Vasco"},
+				HomeClub: domain.ClubSummary{Slug: "flamengo", Name: "Flamengo"},
+				AwayClub: domain.ClubSummary{Slug: "vasco", Name: "Vasco"},
 			},
 		},
 	}}
@@ -141,7 +140,7 @@ func TestGetMatchesPassesSeasonRangeAndMapsSummaries(t *testing.T) {
 func TestGetMatchesSeasonRangePassesNilBounds(t *testing.T) {
 	t.Parallel()
 	club := &domain.Club{ID: "club_flamengo", Slug: "flamengo", Name: "Flamengo"}
-	matches := &fakeMatchLister{byClub: map[domain.ID][]store.MatchRecord{}}
+	matches := &fakeMatchLister{byClub: map[domain.ID][]domain.MatchRecord{}}
 	svc := NewService(&fakeClubReader{bySlug: map[string]*domain.Club{"flamengo": club}}, matches, nil)
 
 	if _, err := svc.GetMatches(context.Background(), "flamengo", RangeSeason, 2026); err != nil {

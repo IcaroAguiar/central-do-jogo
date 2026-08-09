@@ -18,6 +18,8 @@ only a green unit-test CI. This directory is the contract for:
 |------|------|
 | [phase-evidence.md](./phase-evidence.md) | Required evidence matrix by phase / TEST-* id |
 | [phase-4-checklist.md](./phase-4-checklist.md) | Living checklist for GOAL-005 (auth, prefs, push, privacy…) |
+| [phase-4-evidence-pack.md](./phase-4-evidence-pack.md) | UI screenshots, backend HTTP receipts, and phase test logs |
+| [assets/phase-4/](./assets/phase-4/) | Binary/text receipts referenced by the Phase 4 evidence pack |
 | [latest-run.md](./latest-run.md) | Last local/CI smoke receipt committed with this bridge |
 
 Private beta samples, raw screenshots with PII, and non-redistributable

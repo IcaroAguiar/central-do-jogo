@@ -6,21 +6,20 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/IcaroAguiar/central-do-jogo/internal/api"
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/httpapi"
 )
 
-// ClubReader is the subset of store.ClubStore consumed by this package,
+// ClubReader is the club read port consumed by this package,
 // declared here so tests can supply a fake without a database.
 type ClubReader interface {
 	GetBySlug(ctx context.Context, slug string) (*domain.Club, error)
 	List(ctx context.Context) ([]domain.Club, error)
 }
 
-// MatchLister is the subset of store.MatchStore consumed by this package.
+// MatchLister is the match read port consumed by this package.
 type MatchLister interface {
-	ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]store.MatchRecord, error)
+	ListByClub(ctx context.Context, clubID domain.ID, season int, start, end *time.Time) ([]domain.MatchRecord, error)
 }
 
 // Service resolves club detail and agenda queries.
@@ -88,16 +87,16 @@ func detailFromDomain(club *domain.Club) *Detail {
 
 // MatchSummary is one match entry in a club's agenda.
 type MatchSummary struct {
-	Slug           string      `json:"slug"`
-	Round          string      `json:"round"`
-	Venue          string      `json:"venue"`
-	HomeClub       api.ClubRef `json:"homeClub"`
-	AwayClub       api.ClubRef `json:"awayClub"`
-	KickoffAt      *time.Time  `json:"kickoffAt"`
-	KickoffState   string      `json:"kickoffState"`
-	BroadcastState string      `json:"broadcastState"`
-	LineupState    string      `json:"lineupState"`
-	NewsState      string      `json:"newsState"`
+	Slug           string          `json:"slug"`
+	Round          string          `json:"round"`
+	Venue          string          `json:"venue"`
+	HomeClub       httpapi.ClubRef `json:"homeClub"`
+	AwayClub       httpapi.ClubRef `json:"awayClub"`
+	KickoffAt      *time.Time      `json:"kickoffAt"`
+	KickoffState   string          `json:"kickoffState"`
+	BroadcastState string          `json:"broadcastState"`
+	LineupState    string          `json:"lineupState"`
+	NewsState      string          `json:"newsState"`
 }
 
 // MatchesResponse is the JSON payload for GET /api/v1/clubs/{slug}/matches.
@@ -130,8 +129,8 @@ func (s *Service) GetMatches(ctx context.Context, slug string, rng Range, season
 			Slug:           m.Slug,
 			Round:          m.Round,
 			Venue:          m.Venue,
-			HomeClub:       api.ClubRefFromParts(m.HomeClub.Slug, m.HomeClub.Name, m.HomeClub.ShortName),
-			AwayClub:       api.ClubRefFromParts(m.AwayClub.Slug, m.AwayClub.Name, m.AwayClub.ShortName),
+			HomeClub:       httpapi.ClubRefFromParts(m.HomeClub.Slug, m.HomeClub.Name, m.HomeClub.ShortName),
+			AwayClub:       httpapi.ClubRefFromParts(m.AwayClub.Slug, m.AwayClub.Name, m.AwayClub.ShortName),
 			KickoffAt:      m.KickoffAt,
 			KickoffState:   string(m.KickoffState),
 			BroadcastState: string(m.BroadcastState),

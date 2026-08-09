@@ -27,3 +27,8 @@ func WriteJSON(w http.ResponseWriter, status int, body any) {
 func WriteError(w http.ResponseWriter, status int, code, message string) {
 	WriteJSON(w, status, ErrorBody{Error: ErrorDetail{Code: code, Message: message}})
 }
+
+// WriteRateLimited writes the standard SEC-001 rate-limit error envelope.
+func WriteRateLimited(w http.ResponseWriter, _ *http.Request) {
+	WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many requests, try again shortly")
+}

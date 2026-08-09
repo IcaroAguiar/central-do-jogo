@@ -7,17 +7,16 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 var errBoom = errors.New("boom")
 
 type fakeMatchGetter struct {
-	bySlug map[string]*store.MatchRecord
+	bySlug map[string]*domain.MatchRecord
 	err    error
 }
 
-func (f *fakeMatchGetter) GetBySlug(ctx context.Context, slug string) (*store.MatchRecord, error) {
+func (f *fakeMatchGetter) GetBySlug(ctx context.Context, slug string) (*domain.MatchRecord, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -25,11 +24,11 @@ func (f *fakeMatchGetter) GetBySlug(ctx context.Context, slug string) (*store.Ma
 }
 
 type fakeBroadcastLister struct {
-	byMatch map[domain.ID][]store.BroadcastRecord
+	byMatch map[domain.ID][]domain.BroadcastRecord
 	err     error
 }
 
-func (f *fakeBroadcastLister) ListByMatch(ctx context.Context, matchID domain.ID) ([]store.BroadcastRecord, error) {
+func (f *fakeBroadcastLister) ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.BroadcastRecord, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -49,11 +48,11 @@ func (f *fakeLineupLister) ListByMatch(ctx context.Context, matchID domain.ID) (
 }
 
 type fakeNewsLister struct {
-	byMatch map[domain.ID][]store.NewsRecord
+	byMatch map[domain.ID][]domain.NewsRecord
 	err     error
 }
 
-func (f *fakeNewsLister) ListByMatch(ctx context.Context, matchID domain.ID) ([]store.NewsRecord, error) {
+func (f *fakeNewsLister) ListByMatch(ctx context.Context, matchID domain.ID) ([]domain.NewsRecord, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -62,7 +61,7 @@ func (f *fakeNewsLister) ListByMatch(ctx context.Context, matchID domain.ID) ([]
 
 func TestGetDetailReturnsNilWhenMatchMissing(t *testing.T) {
 	t.Parallel()
-	svc := NewService(&fakeMatchGetter{bySlug: map[string]*store.MatchRecord{}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
+	svc := NewService(&fakeMatchGetter{bySlug: map[string]*domain.MatchRecord{}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
 	detail, err := svc.GetDetail(context.Background(), "missing")
 	if err != nil {
 		t.Fatalf("GetDetail() error: %v", err)
@@ -75,25 +74,25 @@ func TestGetDetailReturnsNilWhenMatchMissing(t *testing.T) {
 func TestGetDetailAggregatesAllSurfaces(t *testing.T) {
 	t.Parallel()
 	attempt := time.Date(2026, 8, 1, 10, 0, 0, 0, time.UTC)
-	rec := &store.MatchRecord{
+	rec := &domain.MatchRecord{
 		Match: domain.Match{
 			ID: "match_1", Slug: "flamengo-x-vasco", Round: "R1", Venue: "Maracanã",
 			KickoffState: domain.KickoffPublished, BroadcastState: domain.AvailabilityAvailable,
 			LineupState: domain.AvailabilityAwaitingPublication, NewsState: domain.AvailabilityAvailable,
 			LineupLastAttemptAt: &attempt,
 		},
-		HomeClub:    store.ClubSummary{Slug: "flamengo", Name: "Flamengo"},
-		AwayClub:    store.ClubSummary{Slug: "vasco", Name: "Vasco"},
-		Competition: store.CompetitionSummary{Slug: "brasileirao", Name: "Brasileirao", Season: 2026},
+		HomeClub:    domain.ClubSummary{Slug: "flamengo", Name: "Flamengo"},
+		AwayClub:    domain.ClubSummary{Slug: "vasco", Name: "Vasco"},
+		Competition: domain.CompetitionSummary{Slug: "brasileirao", Name: "Brasileirao", Season: 2026},
 	}
-	matches := &fakeMatchGetter{bySlug: map[string]*store.MatchRecord{"flamengo-x-vasco": rec}}
-	broadcasts := &fakeBroadcastLister{byMatch: map[domain.ID][]store.BroadcastRecord{
+	matches := &fakeMatchGetter{bySlug: map[string]*domain.MatchRecord{"flamengo-x-vasco": rec}}
+	broadcasts := &fakeBroadcastLister{byMatch: map[domain.ID][]domain.BroadcastRecord{
 		"match_1": {{Broadcast: domain.Broadcast{Channel: "TV Globo", Access: domain.AccessFree, Confidence: domain.ConfidenceHigh}, SourceDisplayName: "Fonte X"}},
 	}}
 	lineups := &fakeLineupLister{byMatch: map[domain.ID][]domain.Lineup{
 		"match_1": {{Side: domain.LineupHome, Formation: "4-3-3", Players: []domain.LineupPlayer{{ShirtNumber: "9", Name: "Atacante", IsStarter: true}}}},
 	}}
-	news := &fakeNewsLister{byMatch: map[domain.ID][]store.NewsRecord{
+	news := &fakeNewsLister{byMatch: map[domain.ID][]domain.NewsRecord{
 		"match_1": {{NewsLink: domain.NewsLink{Title: "Notícia", URL: "https://example.com"}, SourceDisplayName: "Fonte Y"}},
 	}}
 
@@ -124,8 +123,8 @@ func TestGetDetailAggregatesAllSurfaces(t *testing.T) {
 
 func TestGetDetailPropagatesErrorsFromEachSurface(t *testing.T) {
 	t.Parallel()
-	rec := &store.MatchRecord{Match: domain.Match{ID: "match_1", Slug: "m"}}
-	baseMatches := &fakeMatchGetter{bySlug: map[string]*store.MatchRecord{"m": rec}}
+	rec := &domain.MatchRecord{Match: domain.Match{ID: "match_1", Slug: "m"}}
+	baseMatches := &fakeMatchGetter{bySlug: map[string]*domain.MatchRecord{"m": rec}}
 
 	t.Run("broadcasts", func(t *testing.T) {
 		t.Parallel()

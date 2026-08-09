@@ -8,6 +8,48 @@ import (
 	"time"
 )
 
+// AuthConfig groups Google OAuth and session settings (env names unchanged).
+type AuthConfig struct {
+	Enabled                   bool
+	GoogleOAuthClientID       string
+	GoogleOAuthClientSecret   string
+	GoogleOAuthRedirectURL    string
+	SessionCookieSecret       string
+	SessionTTL                time.Duration
+	CookieSecure              bool
+	MaintainerAllowlistEmails []string
+	RateLimitPerSecond        float64
+	RateLimitBurst            int
+	PostLoginRedirect         string
+}
+
+// PushConfig groups Web Push / VAPID settings (env names unchanged).
+type PushConfig struct {
+	Enabled         bool
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
+}
+
+// PrivacyConfig groups first-party analytics retention (TASK-030).
+type PrivacyConfig struct {
+	AnalyticsRetentionDays   int
+	EventsRateLimitPerSecond float64
+	EventsRateLimitBurst     int
+}
+
+// AdminConfig groups maintainer panel limits (TASK-031).
+type AdminConfig struct {
+	RateLimitPerSecond float64
+	RateLimitBurst     int
+}
+
+// ReportsConfig groups anonymous report limits (TASK-032).
+type ReportsConfig struct {
+	RateLimitPerSecond float64
+	RateLimitBurst     int
+}
+
 // Config holds process configuration loaded from the environment.
 type Config struct {
 	HTTPAddr          string
@@ -35,40 +77,11 @@ type Config struct {
 	// are ignored (correct for direct exposure; required behind nginx/CDN).
 	TrustedProxyCIDRs []string
 
-	// AuthEnabled is true when Google OAuth + session secret are fully set.
-	// When false, public content still works and /api/v1/auth/me reports
-	// authEnabled=false (RISK-008).
-	AuthEnabled bool
-	// GoogleOAuthClientID / GoogleOAuthClientSecret / GoogleOAuthRedirectURL
-	// configure the initial public OAuth provider (REQ-017).
-	GoogleOAuthClientID     string
-	GoogleOAuthClientSecret string
-	GoogleOAuthRedirectURL  string
-	// SessionCookieSecret HMAC-signs OAuth state and is mixed into session
-	// operations. Required when AuthEnabled.
-	SessionCookieSecret string
-	// SessionTTL is how long a login session cookie remains valid.
-	SessionTTL time.Duration
-	// AuthCookieSecure forces Secure cookies. When unset, Secure follows
-	// whether PublicBaseURL is https.
-	AuthCookieSecure bool
-	// MaintainerAllowlistEmails grants RoleMaintainer on login (REQ-018).
-	// First login never promotes unless the email is present here.
-	MaintainerAllowlistEmails []string
-	// AuthRateLimitPerSecond / AuthRateLimitBurst guard OAuth start+callback.
-	AuthRateLimitPerSecond float64
-	AuthRateLimitBurst     int
-	// AuthPostLoginRedirect is the relative path after successful OAuth.
-	AuthPostLoginRedirect string
-
-	// PushEnabled is true when VAPID public+private keys are fully set.
-	// When false, subscription APIs return 503 and the UI hides consent (RISK-005).
-	PushEnabled bool
-	// VAPIDPublicKey / VAPIDPrivateKey authenticate Web Push (DEP-005).
-	VAPIDPublicKey  string
-	VAPIDPrivateKey string
-	// VAPIDSubject is the contact URI embedded in VAPID JWT (mailto: or https:).
-	VAPIDSubject string
+	Auth    AuthConfig
+	Push    PushConfig
+	Privacy PrivacyConfig
+	Admin   AdminConfig
+	Reports ReportsConfig
 }
 
 // Load reads configuration from environment variables and returns explicit errors.
@@ -129,19 +142,28 @@ func Load() (Config, error) {
 	if err := loadPush(&cfg); err != nil {
 		return Config{}, err
 	}
+	if err := loadPrivacy(&cfg); err != nil {
+		return Config{}, err
+	}
+	if err := loadAdmin(&cfg); err != nil {
+		return Config{}, err
+	}
+	if err := loadReports(&cfg); err != nil {
+		return Config{}, err
+	}
 
 	return cfg, nil
 }
 
 func loadAuth(cfg *Config) error {
-	cfg.GoogleOAuthClientID = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_ID"))
-	cfg.GoogleOAuthClientSecret = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
-	cfg.GoogleOAuthRedirectURL = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_REDIRECT_URL"))
-	cfg.SessionCookieSecret = strings.TrimSpace(os.Getenv("SESSION_COOKIE_SECRET"))
-	cfg.MaintainerAllowlistEmails = normalizeEmails(envCSV("MAINTAINER_ALLOWLIST"))
-	cfg.AuthPostLoginRedirect = strings.TrimSpace(os.Getenv("AUTH_POST_LOGIN_REDIRECT"))
-	if cfg.AuthPostLoginRedirect == "" {
-		cfg.AuthPostLoginRedirect = "/"
+	cfg.Auth.GoogleOAuthClientID = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_ID"))
+	cfg.Auth.GoogleOAuthClientSecret = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"))
+	cfg.Auth.GoogleOAuthRedirectURL = strings.TrimSpace(os.Getenv("GOOGLE_OAUTH_REDIRECT_URL"))
+	cfg.Auth.SessionCookieSecret = strings.TrimSpace(os.Getenv("SESSION_COOKIE_SECRET"))
+	cfg.Auth.MaintainerAllowlistEmails = normalizeEmails(envCSV("MAINTAINER_ALLOWLIST"))
+	cfg.Auth.PostLoginRedirect = strings.TrimSpace(os.Getenv("AUTH_POST_LOGIN_REDIRECT"))
+	if cfg.Auth.PostLoginRedirect == "" {
+		cfg.Auth.PostLoginRedirect = "/"
 	}
 
 	sessionTTLHours, err := envInt("SESSION_TTL_HOURS", 720) // 30 days
@@ -151,13 +173,13 @@ func loadAuth(cfg *Config) error {
 	if sessionTTLHours <= 0 {
 		return fmt.Errorf("SESSION_TTL_HOURS must be positive, got %d", sessionTTLHours)
 	}
-	cfg.SessionTTL = time.Duration(sessionTTLHours) * time.Hour
+	cfg.Auth.SessionTTL = time.Duration(sessionTTLHours) * time.Hour
 
 	cookieSecure, err := envBool("AUTH_COOKIE_SECURE", strings.HasPrefix(cfg.PublicBaseURL, "https://"))
 	if err != nil {
 		return err
 	}
-	cfg.AuthCookieSecure = cookieSecure
+	cfg.Auth.CookieSecure = cookieSecure
 
 	authRate, err := envFloat("AUTH_RATE_LIMIT_PER_SECOND", 1)
 	if err != nil {
@@ -166,7 +188,7 @@ func loadAuth(cfg *Config) error {
 	if authRate <= 0 {
 		return fmt.Errorf("AUTH_RATE_LIMIT_PER_SECOND must be positive, got %v", authRate)
 	}
-	cfg.AuthRateLimitPerSecond = authRate
+	cfg.Auth.RateLimitPerSecond = authRate
 
 	authBurst, err := envInt("AUTH_RATE_LIMIT_BURST", 5)
 	if err != nil {
@@ -175,47 +197,119 @@ func loadAuth(cfg *Config) error {
 	if authBurst <= 0 {
 		return fmt.Errorf("AUTH_RATE_LIMIT_BURST must be positive, got %d", authBurst)
 	}
-	cfg.AuthRateLimitBurst = authBurst
+	cfg.Auth.RateLimitBurst = authBurst
 
-	anyOAuth := cfg.GoogleOAuthClientID != "" || cfg.GoogleOAuthClientSecret != "" ||
-		cfg.GoogleOAuthRedirectURL != "" || cfg.SessionCookieSecret != ""
-	allOAuth := cfg.GoogleOAuthClientID != "" && cfg.GoogleOAuthClientSecret != "" &&
-		cfg.SessionCookieSecret != ""
+	anyOAuth := cfg.Auth.GoogleOAuthClientID != "" || cfg.Auth.GoogleOAuthClientSecret != "" ||
+		cfg.Auth.GoogleOAuthRedirectURL != "" || cfg.Auth.SessionCookieSecret != ""
+	allOAuth := cfg.Auth.GoogleOAuthClientID != "" && cfg.Auth.GoogleOAuthClientSecret != "" &&
+		cfg.Auth.SessionCookieSecret != ""
 
 	if anyOAuth && !allOAuth {
 		return fmt.Errorf("incomplete Google OAuth config: set GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, and SESSION_COOKIE_SECRET together (or leave all empty)")
 	}
-	if allOAuth && len(cfg.SessionCookieSecret) < 32 {
+	if allOAuth && len(cfg.Auth.SessionCookieSecret) < 32 {
 		return fmt.Errorf("SESSION_COOKIE_SECRET must be at least 32 characters")
 	}
 	if allOAuth {
 		if cfg.PublicBaseURL == "" {
 			return fmt.Errorf("PUBLIC_BASE_URL is required when Google OAuth is enabled (CSRF origin binding)")
 		}
-		if cfg.GoogleOAuthRedirectURL == "" {
-			cfg.GoogleOAuthRedirectURL = cfg.PublicBaseURL + "/api/v1/auth/google/callback"
+		if cfg.Auth.GoogleOAuthRedirectURL == "" {
+			cfg.Auth.GoogleOAuthRedirectURL = cfg.PublicBaseURL + "/api/v1/auth/google/callback"
 		}
-		cfg.AuthEnabled = true
+		cfg.Auth.Enabled = true
 	}
 	return nil
 }
 
 func loadPush(cfg *Config) error {
-	cfg.VAPIDPublicKey = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
-	cfg.VAPIDPrivateKey = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
-	cfg.VAPIDSubject = strings.TrimSpace(os.Getenv("VAPID_SUBJECT"))
-	if cfg.VAPIDSubject == "" {
-		cfg.VAPIDSubject = "mailto:ops@centraldojogo.local"
+	cfg.Push.VAPIDPublicKey = strings.TrimSpace(os.Getenv("VAPID_PUBLIC_KEY"))
+	cfg.Push.VAPIDPrivateKey = strings.TrimSpace(os.Getenv("VAPID_PRIVATE_KEY"))
+	cfg.Push.VAPIDSubject = strings.TrimSpace(os.Getenv("VAPID_SUBJECT"))
+	if cfg.Push.VAPIDSubject == "" {
+		cfg.Push.VAPIDSubject = "mailto:ops@centraldojogo.local"
 	}
 
-	any := cfg.VAPIDPublicKey != "" || cfg.VAPIDPrivateKey != ""
-	all := cfg.VAPIDPublicKey != "" && cfg.VAPIDPrivateKey != ""
+	any := cfg.Push.VAPIDPublicKey != "" || cfg.Push.VAPIDPrivateKey != ""
+	all := cfg.Push.VAPIDPublicKey != "" && cfg.Push.VAPIDPrivateKey != ""
 	if any && !all {
 		return fmt.Errorf("incomplete Web Push config: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY together (or leave both empty)")
 	}
 	if all {
-		cfg.PushEnabled = true
+		cfg.Push.Enabled = true
 	}
+	return nil
+}
+
+func loadPrivacy(cfg *Config) error {
+	days, err := envInt("ANALYTICS_RETENTION_DAYS", 90)
+	if err != nil {
+		return err
+	}
+	if days <= 0 {
+		return fmt.Errorf("ANALYTICS_RETENTION_DAYS must be positive, got %d", days)
+	}
+	cfg.Privacy.AnalyticsRetentionDays = days
+
+	rate, err := envFloat("PRIVACY_EVENTS_RATE_LIMIT_PER_SECOND", 0.5)
+	if err != nil {
+		return err
+	}
+	if rate <= 0 {
+		return fmt.Errorf("PRIVACY_EVENTS_RATE_LIMIT_PER_SECOND must be positive, got %v", rate)
+	}
+	cfg.Privacy.EventsRateLimitPerSecond = rate
+
+	burst, err := envInt("PRIVACY_EVENTS_RATE_LIMIT_BURST", 3)
+	if err != nil {
+		return err
+	}
+	if burst <= 0 {
+		return fmt.Errorf("PRIVACY_EVENTS_RATE_LIMIT_BURST must be positive, got %d", burst)
+	}
+	cfg.Privacy.EventsRateLimitBurst = burst
+	return nil
+}
+
+func loadAdmin(cfg *Config) error {
+	rate, err := envFloat("ADMIN_RATE_LIMIT_PER_SECOND", 2)
+	if err != nil {
+		return err
+	}
+	if rate <= 0 {
+		return fmt.Errorf("ADMIN_RATE_LIMIT_PER_SECOND must be positive, got %v", rate)
+	}
+	cfg.Admin.RateLimitPerSecond = rate
+
+	burst, err := envInt("ADMIN_RATE_LIMIT_BURST", 10)
+	if err != nil {
+		return err
+	}
+	if burst <= 0 {
+		return fmt.Errorf("ADMIN_RATE_LIMIT_BURST must be positive, got %d", burst)
+	}
+	cfg.Admin.RateLimitBurst = burst
+	return nil
+}
+
+func loadReports(cfg *Config) error {
+	rate, err := envFloat("REPORTS_RATE_LIMIT_PER_SECOND", 0.5)
+	if err != nil {
+		return err
+	}
+	if rate <= 0 {
+		return fmt.Errorf("REPORTS_RATE_LIMIT_PER_SECOND must be positive, got %v", rate)
+	}
+	cfg.Reports.RateLimitPerSecond = rate
+
+	burst, err := envInt("REPORTS_RATE_LIMIT_BURST", 3)
+	if err != nil {
+		return err
+	}
+	if burst <= 0 {
+		return fmt.Errorf("REPORTS_RATE_LIMIT_BURST must be positive, got %d", burst)
+	}
+	cfg.Reports.RateLimitBurst = burst
 	return nil
 }
 

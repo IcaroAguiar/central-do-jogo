@@ -43,8 +43,11 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.PublicBaseURL != "" {
 		t.Fatalf("PublicBaseURL = %q, want empty", cfg.PublicBaseURL)
 	}
-	if cfg.AuthEnabled {
-		t.Fatal("AuthEnabled default should be false")
+	if cfg.Auth.Enabled {
+		t.Fatal("Auth.Enabled default should be false")
+	}
+	if cfg.Privacy.AnalyticsRetentionDays != 90 {
+		t.Fatalf("Privacy.AnalyticsRetentionDays = %d, want 90", cfg.Privacy.AnalyticsRetentionDays)
 	}
 }
 
@@ -82,17 +85,17 @@ func TestLoadAuthEnabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Load() unexpected error: %v", err)
 	}
-	if !cfg.AuthEnabled {
-		t.Fatal("AuthEnabled should be true")
+	if !cfg.Auth.Enabled {
+		t.Fatal("Auth.Enabled should be true")
 	}
-	if cfg.GoogleOAuthRedirectURL != "https://example.org/api/v1/auth/google/callback" {
-		t.Fatalf("redirect = %q", cfg.GoogleOAuthRedirectURL)
+	if cfg.Auth.GoogleOAuthRedirectURL != "https://example.org/api/v1/auth/google/callback" {
+		t.Fatalf("redirect = %q", cfg.Auth.GoogleOAuthRedirectURL)
 	}
-	if !cfg.AuthCookieSecure {
-		t.Fatal("AuthCookieSecure should default true for https PublicBaseURL")
+	if !cfg.Auth.CookieSecure {
+		t.Fatal("Auth.CookieSecure should default true for https PublicBaseURL")
 	}
-	if len(cfg.MaintainerAllowlistEmails) != 2 {
-		t.Fatalf("allowlist = %#v", cfg.MaintainerAllowlistEmails)
+	if len(cfg.Auth.MaintainerAllowlistEmails) != 2 {
+		t.Fatalf("allowlist = %#v", cfg.Auth.MaintainerAllowlistEmails)
 	}
 }
 

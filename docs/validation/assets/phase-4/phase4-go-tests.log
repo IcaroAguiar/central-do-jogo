@@ -1,0 +1,168 @@
+=== RUN   TestExportOmitsSecretsAndIncludesPrefs
+=== PAUSE TestExportOmitsSecretsAndIncludesPrefs
+=== RUN   TestDeleteAccount
+=== PAUSE TestDeleteAccount
+=== RUN   TestRecordEventLinksOnlyWithConsent
+=== PAUSE TestRecordEventLinksOnlyWithConsent
+=== RUN   TestPurgeExpired
+=== PAUSE TestPurgeExpired
+=== CONT  TestExportOmitsSecretsAndIncludesPrefs
+--- PASS: TestExportOmitsSecretsAndIncludesPrefs (0.00s)
+=== CONT  TestPurgeExpired
+--- PASS: TestPurgeExpired (0.00s)
+=== CONT  TestRecordEventLinksOnlyWithConsent
+--- PASS: TestRecordEventLinksOnlyWithConsent (0.00s)
+=== CONT  TestDeleteAccount
+--- PASS: TestDeleteAccount (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/privacy	0.002s
+=== RUN   TestApplyMatchActionRequiresMaintainer
+=== PAUSE TestApplyMatchActionRequiresMaintainer
+=== RUN   TestApplyMatchActionConfirmAudits
+=== PAUSE TestApplyMatchActionConfirmAudits
+=== CONT  TestApplyMatchActionRequiresMaintainer
+--- PASS: TestApplyMatchActionRequiresMaintainer (0.00s)
+=== CONT  TestApplyMatchActionConfirmAudits
+--- PASS: TestApplyMatchActionConfirmAudits (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/admin	0.002s
+=== RUN   TestCreateDoesNotRequireAuth
+=== PAUSE TestCreateDoesNotRequireAuth
+=== RUN   TestListOpenRequiresMaintainer
+=== PAUSE TestListOpenRequiresMaintainer
+=== CONT  TestCreateDoesNotRequireAuth
+--- PASS: TestCreateDoesNotRequireAuth (0.00s)
+=== CONT  TestListOpenRequiresMaintainer
+--- PASS: TestListOpenRequiresMaintainer (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/reports	0.004s
+=== RUN   TestFirstLoginNeverPromotesWithoutAllowlist
+=== PAUSE TestFirstLoginNeverPromotesWithoutAllowlist
+=== RUN   TestAllowlistGrantsMaintainerOnLogin
+=== PAUSE TestAllowlistGrantsMaintainerOnLogin
+=== RUN   TestInvalidStateRejected
+=== PAUSE TestInvalidStateRejected
+=== RUN   TestUnverifiedEmailRejected
+=== PAUSE TestUnverifiedEmailRejected
+=== RUN   TestAllowlistDemotesActiveSession
+=== PAUSE TestAllowlistDemotesActiveSession
+=== RUN   TestLogoutRevokesSession
+=== PAUSE TestLogoutRevokesSession
+=== RUN   TestSafeRelativePath
+=== PAUSE TestSafeRelativePath
+=== RUN   TestHandlersMeAnonymousWhenDisabled
+=== PAUSE TestHandlersMeAnonymousWhenDisabled
+=== RUN   TestLogoutRejectsMissingOriginWhenBaseConfigured
+=== PAUSE TestLogoutRejectsMissingOriginWhenBaseConfigured
+=== RUN   TestLogoutRejectsForeignOrigin
+=== PAUSE TestLogoutRejectsForeignOrigin
+=== CONT  TestFirstLoginNeverPromotesWithoutAllowlist
+--- PASS: TestFirstLoginNeverPromotesWithoutAllowlist (0.00s)
+=== CONT  TestLogoutRejectsForeignOrigin
+--- PASS: TestLogoutRejectsForeignOrigin (0.00s)
+=== CONT  TestLogoutRejectsMissingOriginWhenBaseConfigured
+--- PASS: TestLogoutRejectsMissingOriginWhenBaseConfigured (0.00s)
+=== CONT  TestHandlersMeAnonymousWhenDisabled
+--- PASS: TestHandlersMeAnonymousWhenDisabled (0.00s)
+=== CONT  TestSafeRelativePath
+--- PASS: TestSafeRelativePath (0.00s)
+=== CONT  TestLogoutRevokesSession
+--- PASS: TestLogoutRevokesSession (0.00s)
+=== CONT  TestAllowlistDemotesActiveSession
+--- PASS: TestAllowlistDemotesActiveSession (0.00s)
+=== CONT  TestUnverifiedEmailRejected
+--- PASS: TestUnverifiedEmailRejected (0.00s)
+=== CONT  TestInvalidStateRejected
+--- PASS: TestInvalidStateRejected (0.00s)
+=== CONT  TestAllowlistGrantsMaintainerOnLogin
+--- PASS: TestAllowlistGrantsMaintainerOnLogin (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/auth	0.003s
+=== RUN   TestPutRejectsMissingOrigin
+=== PAUSE TestPutRejectsMissingOrigin
+=== RUN   TestGetRequiresAuth
+=== PAUSE TestGetRequiresAuth
+=== RUN   TestPutHappyPath
+=== PAUSE TestPutHappyPath
+=== RUN   TestServiceGetUnauthorized
+=== PAUSE TestServiceGetUnauthorized
+=== RUN   TestServicePutValidatesClubsAndPersists
+=== PAUSE TestServicePutValidatesClubsAndPersists
+=== CONT  TestPutRejectsMissingOrigin
+--- PASS: TestPutRejectsMissingOrigin (0.00s)
+=== CONT  TestServicePutValidatesClubsAndPersists
+--- PASS: TestServicePutValidatesClubsAndPersists (0.00s)
+=== CONT  TestServiceGetUnauthorized
+--- PASS: TestServiceGetUnauthorized (0.00s)
+=== CONT  TestPutHappyPath
+--- PASS: TestPutHappyPath (0.00s)
+=== CONT  TestGetRequiresAuth
+--- PASS: TestGetRequiresAuth (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/preferences	0.002s
+=== RUN   TestDelivererForConfigFallsBackToStubWhenDisabled
+=== PAUSE TestDelivererForConfigFallsBackToStubWhenDisabled
+=== RUN   TestVAPIDDelivererMapsStatusCodes
+=== PAUSE TestVAPIDDelivererMapsStatusCodes
+=== RUN   TestVAPIDDelivererRejectsDisallowedEndpointWithoutHTTP
+=== PAUSE TestVAPIDDelivererRejectsDisallowedEndpointWithoutHTTP
+=== RUN   TestVAPIDDelivererMapsServerError
+=== PAUSE TestVAPIDDelivererMapsServerError
+=== RUN   TestVAPIDDelivererRequiresKeysAndSubject
+=== PAUSE TestVAPIDDelivererRequiresKeysAndSubject
+=== RUN   TestSubscribeRejectsNonAllowlistedEndpoints
+=== PAUSE TestSubscribeRejectsNonAllowlistedEndpoints
+=== RUN   TestSubscribeRequiresAuthAndValidEndpoint
+=== PAUSE TestSubscribeRequiresAuthAndValidEndpoint
+=== RUN   TestSubscribeRejectsEndpointOwnedByAnotherUser
+=== PAUSE TestSubscribeRejectsEndpointOwnedByAnotherUser
+=== RUN   TestEnqueueIdempotentAndDeliverDisablesGone
+=== PAUSE TestEnqueueIdempotentAndDeliverDisablesGone
+=== RUN   TestDeliverRequiresAudienceAndDoesNotGlobalFanOut
+=== PAUSE TestDeliverRequiresAudienceAndDoesNotGlobalFanOut
+=== RUN   TestDeliverPartialFailureDoesNotAccept
+=== PAUSE TestDeliverPartialFailureDoesNotAccept
+=== RUN   TestDeliverOmitsAudienceFromClientPayload
+=== PAUSE TestDeliverOmitsAudienceFromClientPayload
+=== CONT  TestDelivererForConfigFallsBackToStubWhenDisabled
+--- PASS: TestDelivererForConfigFallsBackToStubWhenDisabled (0.00s)
+=== CONT  TestDeliverOmitsAudienceFromClientPayload
+=== CONT  TestSubscribeRequiresAuthAndValidEndpoint
+--- PASS: TestSubscribeRequiresAuthAndValidEndpoint (0.00s)
+=== CONT  TestDeliverRequiresAudienceAndDoesNotGlobalFanOut
+=== CONT  TestEnqueueIdempotentAndDeliverDisablesGone
+=== CONT  TestVAPIDDelivererMapsServerError
+=== CONT  TestVAPIDDelivererRejectsDisallowedEndpointWithoutHTTP
+=== CONT  TestVAPIDDelivererMapsStatusCodes
+=== RUN   TestVAPIDDelivererMapsStatusCodes/created
+=== PAUSE TestVAPIDDelivererMapsStatusCodes/created
+=== RUN   TestVAPIDDelivererMapsStatusCodes/ok
+=== PAUSE TestVAPIDDelivererMapsStatusCodes/ok
+=== RUN   TestVAPIDDelivererMapsStatusCodes/gone
+=== PAUSE TestVAPIDDelivererMapsStatusCodes/gone
+=== RUN   TestVAPIDDelivererMapsStatusCodes/not_found
+=== PAUSE TestVAPIDDelivererMapsStatusCodes/not_found
+--- PASS: TestDeliverOmitsAudienceFromClientPayload (0.00s)
+--- PASS: TestDeliverRequiresAudienceAndDoesNotGlobalFanOut (0.00s)
+--- PASS: TestEnqueueIdempotentAndDeliverDisablesGone (0.00s)
+--- PASS: TestVAPIDDelivererMapsServerError (0.00s)
+--- PASS: TestVAPIDDelivererRejectsDisallowedEndpointWithoutHTTP (0.00s)
+=== CONT  TestDeliverPartialFailureDoesNotAccept
+--- PASS: TestDeliverPartialFailureDoesNotAccept (0.00s)
+=== CONT  TestVAPIDDelivererMapsStatusCodes/created
+=== CONT  TestVAPIDDelivererMapsStatusCodes/not_found
+=== CONT  TestVAPIDDelivererMapsStatusCodes/gone
+=== CONT  TestVAPIDDelivererMapsStatusCodes/ok
+--- PASS: TestVAPIDDelivererMapsStatusCodes (0.00s)
+    --- PASS: TestVAPIDDelivererMapsStatusCodes/created (0.00s)
+    --- PASS: TestVAPIDDelivererMapsStatusCodes/not_found (0.00s)
+    --- PASS: TestVAPIDDelivererMapsStatusCodes/gone (0.00s)
+    --- PASS: TestVAPIDDelivererMapsStatusCodes/ok (0.00s)
+=== CONT  TestSubscribeRejectsNonAllowlistedEndpoints
+--- PASS: TestSubscribeRejectsNonAllowlistedEndpoints (0.00s)
+=== CONT  TestSubscribeRejectsEndpointOwnedByAnotherUser
+--- PASS: TestSubscribeRejectsEndpointOwnedByAnotherUser (0.00s)
+=== CONT  TestVAPIDDelivererRequiresKeysAndSubject
+--- PASS: TestVAPIDDelivererRequiresKeysAndSubject (0.00s)
+PASS
+ok  	github.com/IcaroAguiar/central-do-jogo/internal/features/push	0.003s

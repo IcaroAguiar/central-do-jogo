@@ -6,63 +6,25 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/http/ratelimit"
 )
 
-// Dependencies wires feature HTTP handlers into the router without the
-// router needing to know about domain/store/feature packages directly.
-// Any handler left nil is simply not registered.
-type Dependencies struct {
-	// Search handles GET /api/v1/search. Wrapped with RateLimiter when set.
-	Search http.Handler
-	// Club handles GET /api/v1/clubs/{slug}.
-	Club http.Handler
-	// ClubMatches handles GET /api/v1/clubs/{slug}/matches.
-	ClubMatches http.Handler
-	// Match handles GET /api/v1/matches/{slug}.
+// SSRHandlers wires optional server-side HTML routes (PAT-004).
+// Any handler left nil falls through to the SPA shell.
+type SSRHandlers struct {
+	Home  http.Handler
+	Club  http.Handler
 	Match http.Handler
-
-	// AuthGoogleStart handles GET /api/v1/auth/google/start.
-	AuthGoogleStart http.Handler
-	// AuthGoogleCallback handles GET /api/v1/auth/google/callback.
-	AuthGoogleCallback http.Handler
-	// AuthMe handles GET /api/v1/auth/me.
-	AuthMe http.Handler
-	// AuthLogout handles POST /api/v1/auth/logout.
-	AuthLogout http.Handler
-
-	// PreferencesGet handles GET /api/v1/preferences.
-	PreferencesGet http.Handler
-	// PreferencesPut handles PUT /api/v1/preferences.
-	PreferencesPut http.Handler
-
-	// PushVAPIDPublicKey handles GET /api/v1/push/vapid-public-key.
-	PushVAPIDPublicKey http.Handler
-	// PushSubscriptionsList handles GET /api/v1/push/subscriptions.
-	PushSubscriptionsList http.Handler
-	// PushSubscribe handles POST /api/v1/push/subscriptions.
-	PushSubscribe http.Handler
-	// PushUnsubscribe handles DELETE /api/v1/push/subscriptions.
-	PushUnsubscribe http.Handler
-
-	// HomeSSR, ClubSSR, and MatchSSR render server-side HTML for "/",
-	// "/clubes/{slug}", and "/jogos/{slug}" respectively (PAT-004). When a
-	// handler is nil, that route falls through to the SPA shell.
-	HomeSSR  http.Handler
-	ClubSSR  http.Handler
-	MatchSSR http.Handler
 }
 
 // Options configures the HTTP router.
 type Options struct {
 	StaticDir string
 	Now       func() time.Time
-	Deps      Dependencies
-	// RateLimiter, when set, guards GET /api/v1/search (SEC-001).
-	RateLimiter *ratelimit.Limiter
-	// AuthRateLimiter, when set, guards OAuth start and callback (SEC-001).
-	AuthRateLimiter *ratelimit.Limiter
+	SSR       SSRHandlers
+	// RegisterAPI mounts feature API routes onto the mux. The composition
+	// root (internal/app) supplies this so the HTTP kernel does not grow a
+	// field-per-handler dependency bag (ADR 0002).
+	RegisterAPI func(mux *http.ServeMux)
 }
 
 // NewRouter builds the application ServeMux. API routes are registered as
@@ -83,8 +45,10 @@ func NewRouter(opts Options) http.Handler {
 		})
 	})
 
-	registerAPIRoutes(mux, opts)
-	registerSSRRoutes(mux, opts.Deps)
+	if opts.RegisterAPI != nil {
+		opts.RegisterAPI(mux)
+	}
+	registerSSRRoutes(mux, opts.SSR)
 
 	if opts.StaticDir != "" {
 		fileServer := http.FileServer(http.Dir(opts.StaticDir))
@@ -94,79 +58,18 @@ func NewRouter(opts Options) http.Handler {
 	return mux
 }
 
-func registerAPIRoutes(mux *http.ServeMux, opts Options) {
-	if opts.Deps.Search != nil {
-		search := opts.Deps.Search
-		if opts.RateLimiter != nil {
-			search = ratelimit.Middleware(opts.RateLimiter, "GET /api/v1/search", writeRateLimitedError)(search)
-		}
-		mux.Handle("GET /api/v1/search", search)
-	}
-	if opts.Deps.Club != nil {
-		mux.Handle("GET /api/v1/clubs/{slug}", opts.Deps.Club)
-	}
-	if opts.Deps.ClubMatches != nil {
-		mux.Handle("GET /api/v1/clubs/{slug}/matches", opts.Deps.ClubMatches)
-	}
-	if opts.Deps.Match != nil {
-		mux.Handle("GET /api/v1/matches/{slug}", opts.Deps.Match)
-	}
-	if opts.Deps.AuthGoogleStart != nil {
-		h := opts.Deps.AuthGoogleStart
-		if opts.AuthRateLimiter != nil {
-			h = ratelimit.Middleware(opts.AuthRateLimiter, "GET /api/v1/auth/google/start", writeRateLimitedError)(h)
-		}
-		mux.Handle("GET /api/v1/auth/google/start", h)
-	}
-	if opts.Deps.AuthGoogleCallback != nil {
-		h := opts.Deps.AuthGoogleCallback
-		if opts.AuthRateLimiter != nil {
-			h = ratelimit.Middleware(opts.AuthRateLimiter, "GET /api/v1/auth/google/callback", writeRateLimitedError)(h)
-		}
-		mux.Handle("GET /api/v1/auth/google/callback", h)
-	}
-	if opts.Deps.AuthMe != nil {
-		mux.Handle("GET /api/v1/auth/me", opts.Deps.AuthMe)
-	}
-	if opts.Deps.AuthLogout != nil {
-		mux.Handle("POST /api/v1/auth/logout", opts.Deps.AuthLogout)
-	}
-	if opts.Deps.PreferencesGet != nil {
-		mux.Handle("GET /api/v1/preferences", opts.Deps.PreferencesGet)
-	}
-	if opts.Deps.PreferencesPut != nil {
-		mux.Handle("PUT /api/v1/preferences", opts.Deps.PreferencesPut)
-	}
-	if opts.Deps.PushVAPIDPublicKey != nil {
-		mux.Handle("GET /api/v1/push/vapid-public-key", opts.Deps.PushVAPIDPublicKey)
-	}
-	if opts.Deps.PushSubscriptionsList != nil {
-		mux.Handle("GET /api/v1/push/subscriptions", opts.Deps.PushSubscriptionsList)
-	}
-	if opts.Deps.PushSubscribe != nil {
-		mux.Handle("POST /api/v1/push/subscriptions", opts.Deps.PushSubscribe)
-	}
-	if opts.Deps.PushUnsubscribe != nil {
-		mux.Handle("DELETE /api/v1/push/subscriptions", opts.Deps.PushUnsubscribe)
-	}
-}
-
-func registerSSRRoutes(mux *http.ServeMux, deps Dependencies) {
-	if deps.HomeSSR != nil {
+func registerSSRRoutes(mux *http.ServeMux, ssr SSRHandlers) {
+	if ssr.Home != nil {
 		// "/{$}" matches only the exact root path, letting the SPA "/"
 		// catch-all continue to serve every other client-side route.
-		mux.Handle("GET /{$}", deps.HomeSSR)
+		mux.Handle("GET /{$}", ssr.Home)
 	}
-	if deps.ClubSSR != nil {
-		mux.Handle("GET /clubes/{slug}", deps.ClubSSR)
+	if ssr.Club != nil {
+		mux.Handle("GET /clubes/{slug}", ssr.Club)
 	}
-	if deps.MatchSSR != nil {
-		mux.Handle("GET /jogos/{slug}", deps.MatchSSR)
+	if ssr.Match != nil {
+		mux.Handle("GET /jogos/{slug}", ssr.Match)
 	}
-}
-
-func writeRateLimitedError(w http.ResponseWriter, _ *http.Request) {
-	WriteError(w, http.StatusTooManyRequests, "rate_limited", "too many requests, try again shortly")
 }
 
 func spaHandler(staticDir string, fileServer http.Handler) http.Handler {

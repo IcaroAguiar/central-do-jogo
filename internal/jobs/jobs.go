@@ -41,10 +41,18 @@ type Job struct {
 	UpdatedAt      time.Time
 }
 
+// Enqueuer schedules jobs with idempotency keys.
+type Enqueuer interface {
+	Enqueue(ctx context.Context, jobType string, payload json.RawMessage, idempotencyKey string, runAfter time.Time, maxAttempts int) (*Job, error)
+}
+
 // Store provides Postgres-backed job operations.
 type Store struct {
 	pool *pgxpool.Pool
 }
+
+// Ensure Store satisfies Enqueuer.
+var _ Enqueuer = (*Store)(nil)
 
 // NewStore creates a job store backed by the provided pgx pool.
 func NewStore(pool *pgxpool.Pool) *Store {

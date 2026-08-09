@@ -19,29 +19,55 @@ type HandlerRegistry map[string]Handler
 // Set to LeaseDuration minus a safety buffer so the handler cannot outlive the lease.
 const handlerTimeout = 4 * time.Minute
 
+// ScheduleFunc runs opportunistic maintenance (e.g. daily purge enqueue).
+type ScheduleFunc func(ctx context.Context) error
+
 // Worker is the main job processing loop.
 type Worker struct {
-	store        *Store
-	health       *HealthStore
-	handlers     HandlerRegistry
-	owner        string
-	pollInterval time.Duration
+	store         *Store
+	health        *HealthStore
+	handlers      HandlerRegistry
+	owner         string
+	pollInterval  time.Duration
+	schedule      ScheduleFunc
+	scheduleEvery time.Duration
+	lastSchedule  time.Time
+}
+
+// WorkerOption configures optional worker behavior.
+type WorkerOption func(*Worker)
+
+// WithSchedule registers a hook invoked on worker start and about every interval.
+func WithSchedule(fn ScheduleFunc, every time.Duration) WorkerOption {
+	return func(w *Worker) {
+		w.schedule = fn
+		if every <= 0 {
+			every = time.Hour
+		}
+		w.scheduleEvery = every
+	}
 }
 
 // NewWorker creates a worker that claims and executes jobs.
-func NewWorker(store *Store, health *HealthStore, handlers HandlerRegistry, owner string) *Worker {
-	return &Worker{
+func NewWorker(store *Store, health *HealthStore, handlers HandlerRegistry, owner string, opts ...WorkerOption) *Worker {
+	w := &Worker{
 		store:        store,
 		health:       health,
 		handlers:     handlers,
 		owner:        owner,
 		pollInterval: 5 * time.Second,
 	}
+	for _, opt := range opts {
+		opt(w)
+	}
+	return w
 }
 
 // Run starts the claim-execute loop until ctx is cancelled. Returns nil on clean shutdown.
 func (w *Worker) Run(ctx context.Context, logger *slog.Logger) error {
 	logger.Info("worker loop started", "owner", w.owner)
+	w.maybeSchedule(ctx, logger)
+
 	ticker := time.NewTicker(w.pollInterval)
 	defer ticker.Stop()
 
@@ -51,12 +77,40 @@ func (w *Worker) Run(ctx context.Context, logger *slog.Logger) error {
 			logger.Info("worker loop shutting down")
 			return nil
 		case <-ticker.C:
+			w.maybeSchedule(ctx, logger)
 			if err := w.tick(ctx, logger); err != nil {
 				logger.Error("worker tick error", "error", err)
 			}
 		}
 	}
 }
+
+// maybeSchedule runs the schedule hook at most once per scheduleEvery.
+// Exported behavior is covered via MaybeScheduleForTest.
+func (w *Worker) maybeSchedule(ctx context.Context, logger *slog.Logger) {
+	if w.schedule == nil {
+		return
+	}
+	now := time.Now()
+	if !w.lastSchedule.IsZero() && now.Sub(w.lastSchedule) < w.scheduleEvery {
+		return
+	}
+	if err := w.schedule(ctx); err != nil {
+		if logger != nil {
+			logger.Error("worker schedule hook failed", "error", err)
+		}
+		return
+	}
+	w.lastSchedule = now
+}
+
+// MaybeScheduleForTest exposes maybeSchedule for unit tests.
+func (w *Worker) MaybeScheduleForTest(ctx context.Context) {
+	w.maybeSchedule(ctx, nil)
+}
+
+// LastScheduleForTest returns the last successful schedule timestamp.
+func (w *Worker) LastScheduleForTest() time.Time { return w.lastSchedule }
 
 func (w *Worker) tick(ctx context.Context, logger *slog.Logger) error {
 	job, err := w.store.Claim(ctx, w.owner)

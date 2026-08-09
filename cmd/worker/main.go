@@ -7,13 +7,15 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/privacy"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/database"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
+	"github.com/IcaroAguiar/central-do-jogo/internal/store"
 )
 
 func main() {
@@ -49,29 +51,38 @@ func run() error {
 	jobStore := jobs.NewStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
 	pushStore := store.NewPushStore(pool)
-	deliverer, err := push.DelivererForConfig(cfg.PushEnabled, cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject, nil)
+	analyticsStore := store.NewAnalyticsStore(pool)
+	deliverer, err := push.DelivererForConfig(cfg.Push.Enabled, cfg.Push.VAPIDPublicKey, cfg.Push.VAPIDPrivateKey, cfg.Push.VAPIDSubject, nil)
 	if err != nil {
 		return fmt.Errorf("configure push deliverer: %w", err)
 	}
-	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.PushEnabled, nil)
+	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.Push.Enabled, nil)
+
+	retention := privacy.NewRetention(analyticsStore, cfg.Privacy.AnalyticsRetentionDays, nil)
 
 	handlers := jobs.HandlerRegistry{
-		"ingest.openfootball_brazil": noopHandler("openfootball_brazil"),
-		"ingest.cbf_match_center":    noopHandler("cbf_match_center"),
-		"ingest.cbf_official_site":   noopHandler("cbf_official_site"),
-		"ingest.gazetaesportiva":     noopHandler("gazetaesportiva"),
-		push.JobTypeDeliver:          push.DeliverHandler(pushRunner),
-		push.JobTypeCleanup:          push.CleanupHandler(pushRunner),
+		"ingest.openfootball_brazil":  noopHandler("openfootball_brazil"),
+		"ingest.cbf_match_center":     noopHandler("cbf_match_center"),
+		"ingest.cbf_official_site":    noopHandler("cbf_official_site"),
+		"ingest.gazetaesportiva":      noopHandler("gazetaesportiva"),
+		push.JobTypeDeliver:           push.DeliverHandler(pushRunner),
+		push.JobTypeCleanup:           push.CleanupHandler(pushRunner),
+		privacy.JobTypePurgeAnalytics: privacy.PurgeHandler(retention),
 	}
 
 	hostname, _ := os.Hostname()
 	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
 
-	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner)
+	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner,
+		jobs.WithSchedule(func(ctx context.Context) error {
+			_, err := privacy.EnqueuePurgeJob(ctx, jobStore, time.Now().UTC())
+			return err
+		}, time.Hour),
+	)
 	logger.Info("worker started",
 		"owner", owner,
 		"handlers", len(handlers),
-		"push_enabled", cfg.PushEnabled,
+		"push_enabled", cfg.Push.Enabled,
 	)
 
 	return worker.Run(ctx, logger)

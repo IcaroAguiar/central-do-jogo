@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/platform/store"
 )
 
 func withSlug(req *http.Request, slug string) *http.Request {
@@ -17,7 +16,7 @@ func withSlug(req *http.Request, slug string) *http.Request {
 
 func TestDetailHandlerNotFound(t *testing.T) {
 	t.Parallel()
-	svc := NewService(&fakeMatchGetter{bySlug: map[string]*store.MatchRecord{}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
+	svc := NewService(&fakeMatchGetter{bySlug: map[string]*domain.MatchRecord{}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
 	handler := NewDetailHandler(svc)
 
 	rec := httptest.NewRecorder()
@@ -34,8 +33,8 @@ func TestDetailHandlerNotFound(t *testing.T) {
 
 func TestDetailHandlerOK(t *testing.T) {
 	t.Parallel()
-	rec := &store.MatchRecord{Match: domain.Match{ID: "match_1", Slug: "flamengo-x-vasco"}}
-	svc := NewService(&fakeMatchGetter{bySlug: map[string]*store.MatchRecord{"flamengo-x-vasco": rec}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
+	rec := &domain.MatchRecord{Match: domain.Match{ID: "match_1", Slug: "flamengo-x-vasco"}}
+	svc := NewService(&fakeMatchGetter{bySlug: map[string]*domain.MatchRecord{"flamengo-x-vasco": rec}}, &fakeBroadcastLister{}, &fakeLineupLister{}, &fakeNewsLister{})
 	handler := NewDetailHandler(svc)
 
 	recorder := httptest.NewRecorder()

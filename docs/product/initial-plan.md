@@ -128,9 +128,9 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 | TASK-027 | Criar `internal/features/auth/` para OAuth configuravel, Google inicial, sessoes seguras e allowlist de mantenedor; adicionar migracoes de usuarios/sessoes. | x | 2026-08-02 |
 | TASK-028 | Criar `internal/features/preferences/` e `web/src/features/preferences/` para merge local/remoto, escolha de clube principal e favoritos. | x | 2026-08-02 |
 | TASK-029 | Criar `internal/features/push/` e `web/src/features/push/` para consentimento contextual, subscriptions, deduplicacao/versionamento, retries e limpeza de endpoints expirados. | x | 2026-08-03 |
-| TASK-030 | Criar `internal/features/privacy/` e `web/src/features/settings/` para eventos first-party, retencao 90 dias, exportacao JSON e exclusao autoatendida. | | |
-| TASK-031 | Criar `internal/features/admin/` e `web/src/features/admin/` para saude de fontes, partidas em risco, confirmacao/correcao/divergencia e trilha de auditoria. | | |
-| TASK-032 | Criar `internal/features/reports/` e `web/src/features/reports/` para relatos anonimos limitados/sanitizados e fila contextual do mantenedor. | | |
+| TASK-030 | Criar `internal/features/privacy/` e `web/src/features/settings/` para eventos first-party, retencao 90 dias, exportacao JSON e exclusao autoatendida. | x | 2026-08-09 |
+| TASK-031 | Criar `internal/features/admin/` e `web/src/features/admin/` para saude de fontes, partidas em risco, confirmacao/correcao/divergencia e trilha de auditoria. | x | 2026-08-09 |
+| TASK-032 | Criar `internal/features/reports/` e `web/src/features/reports/` para relatos anonimos limitados/sanitizados e fila contextual do mantenedor. | x | 2026-08-09 |
 
 ### Implementation Phase 5 - Hardening, beta and release
 
@@ -189,14 +189,17 @@ Este plano transforma o brainstorming e o grilling em uma sequencia executavel p
 - **FILE-006**: `internal/sources/` - adaptadores, manifestos e testkit.
 - **FILE-007**: `internal/reconciliation/` - confianca e overrides.
 - **FILE-008**: `internal/jobs/` - leases, retries e saude.
-- **FILE-009**: `internal/features/` - casos de uso publicos, conta, Push e admin.
-- **FILE-010**: `internal/platform/` - config, HTTP, render, logging e seguranca transversal.
+- **FILE-009**: `internal/features/` - casos de uso publicos, conta, Push, privacy, admin e reports.
+- **FILE-010**: `internal/platform/` - config, HTTP kernel, render, logging e seguranca transversal.
+- **FILE-010a**: `internal/store/` - persistencia PostgreSQL (fora de platform; ADR 0002).
+- **FILE-010b**: `internal/httpapi/` - DTOs/constantes compartilhados do contrato (nao confundir com `/api`).
+- **FILE-010c**: `internal/app/` - composition root HTTP que registra features.
 - **FILE-011**: `db/migrations/` - schema PostgreSQL.
 - **FILE-012**: `api/openapi.yaml` - contrato REST interno.
-- **FILE-013**: `web/src/` - PWA React/Vite.
+- **FILE-013**: `web/src/` - PWA React/Vite (`features/` para jornadas; `pages/` so shells).
 - **FILE-014**: `web/server-templates/` - HTML inicial semantico.
 - **FILE-015**: `deploy/` - imagem e Docker Compose.
-- **FILE-016**: `e2e/` - Playwright das jornadas criticas.
+- **FILE-016**: `e2e/` - Playwright (`public/` e `admin/`) das jornadas criticas.
 - **FILE-017**: `ops/` - backup e restore test.
 - **FILE-018**: `docs/validation/` - protocolo/resultados da beta e gates.
 - **FILE-019**: `docs/operations/` - runbooks e continuidade.
