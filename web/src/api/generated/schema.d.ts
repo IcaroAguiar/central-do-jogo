@@ -241,6 +241,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/privacy/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download account data as JSON (REQ-019)
+         * @description Returns a portable account snapshot for the authenticated user. Omits session tokens, cookies, and Push endpoints (REQ-019). Always Cache-Control: no-store (SEC-003).
+         */
+        get: operations["exportPrivacyData"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/privacy/account": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Self-serve account deletion (REQ-019)
+         * @description Permanently deletes the authenticated account and cascaded data. Requires a matching Origin or Referer against PUBLIC_BASE_URL (SEC-003). Clears the session cookie on success.
+         */
+        delete: operations["deletePrivacyAccount"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/privacy/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record a first-party analytics event (REQ-020)
+         * @description Accepts an anonymous local identifier. Links to the account only when a session is present and consentToLink is true (REQ-020).
+         */
+        post: operations["postPrivacyAnalyticsEvent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -260,6 +320,52 @@ export interface components {
                 code: string;
                 /** @description Human-readable error message. */
                 message: string;
+            };
+        };
+        PrivacyExportResponse: {
+            /** Format: date-time */
+            exportedAt: string;
+            user: components["schemas"]["PrivacyExportUser"];
+            preferences: components["schemas"]["PrivacyExportPreferences"];
+            analyticsEvents: components["schemas"]["PrivacyAnalyticsEvent"][];
+        };
+        PrivacyExportUser: {
+            id: string;
+            provider: string;
+            /** Format: email */
+            email: string;
+            displayName: string;
+            /** @enum {string} */
+            role: "user" | "maintainer";
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: date-time */
+            lastLoginAt?: string;
+        };
+        PrivacyExportPreferences: {
+            primaryClubSlug?: string | null;
+            favoriteClubSlugs: string[];
+            /** Format: date-time */
+            updatedAt?: string;
+        };
+        PrivacyAnalyticsEvent: {
+            id: string;
+            eventType: string;
+            /** Format: date-time */
+            createdAt: string;
+            properties: {
+                [key: string]: unknown;
+            };
+        };
+        PrivacyAnalyticsEventCreate: {
+            anonymousId: string;
+            eventType: string;
+            /** @default false */
+            consentToLink: boolean;
+            properties?: {
+                [key: string]: unknown;
             };
         };
         AuthMeResponse: {
@@ -1069,6 +1175,120 @@ export interface operations {
             };
             /** @description Match not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    exportPrivacyData: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Portable account snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PrivacyExportResponse"];
+                };
+            };
+            /** @description Missing or invalid session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Auth disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    deletePrivacyAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Account deleted; session cleared */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description CSRF origin rejected */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Auth disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postPrivacyAnalyticsEvent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrivacyAnalyticsEventCreate"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid event payload */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };

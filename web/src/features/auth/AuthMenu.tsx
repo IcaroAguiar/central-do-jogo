@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { type AuthMeResponse, fetchAuthMe, logoutAuth } from "../../api/client";
 import { markAuthenticated } from "../preferences/sync";
 
@@ -54,6 +55,9 @@ export function AuthMenu() {
         {label}
         {me.role === "maintainer" ? " · mantenedor" : ""}
       </span>
+      <Link className="auth-link" to="/conta">
+        Conta
+      </Link>
       <button type="button" className="auth-link" onClick={() => void logout()} disabled={busy}>
         Sair
       </button>

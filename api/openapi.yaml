@@ -1,13 +1,14 @@
 openapi: 3.1.0
 info:
   title: Central do Jogo Internal API
-  version: 0.6.0
+  version: 0.7.0
   description: >
     Internal REST contract for the Central do Jogo MVP.
     No third-party compatibility SLA is offered. Phase 3 covers public
     read-only journeys; Phase 4 adds optional Google OAuth sessions
-    (REQ-017, REQ-018), account preference sync (REQ-006), and Web Push
-    subscriptions (REQ-011, REQ-012).
+    (REQ-017, REQ-018), account preference sync (REQ-006), Web Push
+    subscriptions (REQ-011, REQ-012), and privacy export/delete/analytics
+    (REQ-019, REQ-020).
   license:
     name: Apache-2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
@@ -23,6 +24,8 @@ tags:
     description: Account-backed primary club and favorites sync (REQ-006, SEC-003).
   - name: push
     description: Opt-in Web Push subscriptions and VAPID public key (REQ-011, REQ-012, SEC-003).
+  - name: privacy
+    description: Account export/delete and first-party analytics retention (REQ-019, REQ-020, SEC-003).
   - name: search
     description: Free-text search across clubs and matches (REQ-005).
   - name: clubs
@@ -518,6 +521,96 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+
+  /api/v1/privacy/export:
+    get:
+      operationId: exportPrivacyData
+      summary: Download account data as JSON (REQ-019)
+      description: >
+        Returns a portable account snapshot for the authenticated user.
+        Omits session tokens, cookies, and Push endpoints (REQ-019).
+        Always Cache-Control: no-store (SEC-003).
+      tags:
+        - privacy
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Portable account snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivacyExportResponse"
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/privacy/account:
+    delete:
+      operationId: deletePrivacyAccount
+      summary: Self-serve account deletion (REQ-019)
+      description: >
+        Permanently deletes the authenticated account and cascaded data.
+        Requires a matching Origin or Referer against PUBLIC_BASE_URL (SEC-003).
+        Clears the session cookie on success.
+      tags:
+        - privacy
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Account deleted; session cleared
+        "401":
+          description: Missing or invalid session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "403":
+          description: CSRF origin rejected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Auth disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/v1/privacy/events:
+    post:
+      operationId: postPrivacyAnalyticsEvent
+      summary: Record a first-party analytics event (REQ-020)
+      description: >
+        Accepts an anonymous local identifier. Links to the account only when
+        a session is present and consentToLink is true (REQ-020).
+      tags:
+        - privacy
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivacyAnalyticsEventCreate"
+      responses:
+        "204":
+          description: Accepted
+        "400":
+          description: Invalid event payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   securitySchemes:
     sessionCookie:
@@ -565,6 +658,75 @@ components:
             message:
               type: string
               description: Human-readable error message.
+
+    PrivacyExportResponse:
+      type: object
+      required: [exportedAt, user, preferences, analyticsEvents]
+      properties:
+        exportedAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/PrivacyExportUser"
+        preferences:
+          $ref: "#/components/schemas/PrivacyExportPreferences"
+        analyticsEvents:
+          type: array
+          items:
+            $ref: "#/components/schemas/PrivacyAnalyticsEvent"
+    PrivacyExportUser:
+      type: object
+      required: [id, provider, email, displayName, role, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        provider: { type: string }
+        email: { type: string, format: email }
+        displayName: { type: string }
+        role: { type: string, enum: [user, maintainer] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastLoginAt: { type: string, format: date-time }
+    PrivacyExportPreferences:
+      type: object
+      required: [favoriteClubSlugs]
+      properties:
+        primaryClubSlug:
+          type: string
+          nullable: true
+        favoriteClubSlugs:
+          type: array
+          items: { type: string }
+        updatedAt:
+          type: string
+          format: date-time
+    PrivacyAnalyticsEvent:
+      type: object
+      required: [id, eventType, createdAt, properties]
+      properties:
+        id: { type: string }
+        eventType: { type: string }
+        createdAt: { type: string, format: date-time }
+        properties:
+          type: object
+          additionalProperties: true
+    PrivacyAnalyticsEventCreate:
+      type: object
+      required: [anonymousId, eventType]
+      properties:
+        anonymousId:
+          type: string
+          minLength: 8
+          maxLength: 128
+        eventType:
+          type: string
+          maxLength: 64
+        consentToLink:
+          type: boolean
+          default: false
+        properties:
+          type: object
+          additionalProperties: true
+
     AuthMeResponse:
       type: object
       required:

@@ -11,6 +11,7 @@ import (
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/clubs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/matches"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/preferences"
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/privacy"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/search"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
@@ -31,6 +32,7 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	userStore := store.NewUserStore(pool)
 	prefsStore := store.NewPreferencesStore(pool)
 	pushStore := store.NewPushStore(pool)
+	analyticsStore := store.NewAnalyticsStore(pool)
 
 	searchSvc := search.NewService(clubStore, matchStore)
 	clubsSvc := clubs.NewService(clubStore, matchStore, time.Now)
@@ -38,6 +40,7 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	authSvc := newAuthService(cfg, userStore)
 	prefsSvc := preferences.NewService(authSvc, prefsStore, clubStore, time.Now)
 	pushSvc := push.NewService(authSvc, pushStore, cfg.Push.Enabled, cfg.Push.VAPIDPublicKey, time.Now)
+	privacySvc := privacy.NewService(authSvc, userStore, prefsStore, analyticsStore, cfg.Privacy.AnalyticsRetentionDays, time.Now)
 
 	searchLimiter := ratelimit.New(cfg.SearchRateLimitPerSecond, cfg.SearchRateLimitBurst)
 	if err := searchLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
@@ -69,6 +72,7 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 			auth.Register(mux, authSvc, authLimiter)
 			preferences.Register(mux, prefsSvc)
 			push.Register(mux, pushSvc)
+			privacy.Register(mux, privacySvc)
 		},
 	}), nil
 }

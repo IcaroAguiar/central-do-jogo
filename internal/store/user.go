@@ -154,3 +154,16 @@ func (s *UserStore) RevokeSession(ctx context.Context, tokenHash string, now tim
 	}
 	return nil
 }
+
+// Delete removes the user row. Sessions, preferences, push subscriptions, and
+// linked analytics cascade via foreign keys (REQ-019).
+func (s *UserStore) Delete(ctx context.Context, id domain.ID) error {
+	tag, err := s.pool.Exec(ctx, `DELETE FROM users WHERE id = $1`, id.String())
+	if err != nil {
+		return fmt.Errorf("delete user: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("delete user: not found")
+	}
+	return nil
+}

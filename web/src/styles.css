@@ -404,3 +404,38 @@ input[type="text"] {
 .load-error button {
   margin-top: 1rem;
 }
+
+.settings-page {
+  padding: 1rem 0 2rem;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.settings-actions button {
+  cursor: pointer;
+  font: inherit;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--fg);
+}
+
+.settings-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.settings-danger {
+  border-color: #e8a0a0 !important;
+  color: #ffd5d5 !important;
+}
+
+.settings-error {
+  color: #ffd5d5;
+}

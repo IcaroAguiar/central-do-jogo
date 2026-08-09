@@ -7,6 +7,8 @@ export type PushVapidPublicKeyResponse = components["schemas"]["PushVapidPublicK
 export type PushSubscriptionCreate = components["schemas"]["PushSubscriptionCreate"];
 export type PushSubscriptionListResponse = components["schemas"]["PushSubscriptionListResponse"];
 export type PushSubscriptionSummary = components["schemas"]["PushSubscriptionSummary"];
+export type PrivacyExportResponse = components["schemas"]["PrivacyExportResponse"];
+export type PrivacyAnalyticsEventCreate = components["schemas"]["PrivacyAnalyticsEventCreate"];
 export type ClubDetail = components["schemas"]["ClubDetail"];
 export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
 export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
@@ -208,6 +210,22 @@ export function createPushSubscription(
   body: PushSubscriptionCreate,
 ): Promise<PushSubscriptionSummary> {
   return authedJSON<PushSubscriptionSummary>("/api/v1/push/subscriptions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchPrivacyExport(): Promise<PrivacyExportResponse> {
+  return authedJSON<PrivacyExportResponse>("/api/v1/privacy/export");
+}
+
+export function deletePrivacyAccount(): Promise<void> {
+  return authedJSON<void>("/api/v1/privacy/account", { method: "DELETE" });
+}
+
+export function postPrivacyAnalyticsEvent(body: PrivacyAnalyticsEventCreate): Promise<void> {
+  return authedJSON<void>("/api/v1/privacy/events", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
