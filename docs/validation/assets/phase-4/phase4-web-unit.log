@@ -1,0 +1,11 @@
+[WARN] Unsupported engine: wanted: {"node":"^24.18.1"} (current: {"node":"v22.14.0","pnpm":"11.18.0"})
+$ vitest run -- --reporter=verbose src/features/admin src/features/settings src/features/reports src/features/auth src/features/preferences src/features/push
+
+ RUN  v4.1.10 /workspace/web
+
+
+ Test Files  14 passed (14)
+      Tests  40 passed (40)
+   Start at  05:05:08
+   Duration  3.46s (transform 406ms, setup 1.20s, import 872ms, tests 1.57s, environment 4.96s)
+

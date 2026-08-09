@@ -1,0 +1,19 @@
+[WARN] Unsupported engine: wanted: {"node":"^24.18.1"} (current: {"node":"v22.14.0","pnpm":"11.18.0"})
+$ playwright test --config ../e2e/public/playwright.config.ts
+
+Running 4 tests using 2 workers
+
+(node:33823) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33823) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33824) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  2 [chromium] › ../e2e/public/tests/phase4-api.spec.ts:9:7 › phase 4 API readiness › auth/me reports configuration without requiring a session (24ms)
+  ✓  3 [chromium] › ../e2e/public/tests/phase4-api.spec.ts:20:7 › phase 4 API readiness › push vapid endpoint responds according to VAPID configuration (21ms)
+  ✓  1 [chromium] › ../e2e/public/tests/offline.spec.ts:22:7 › offline resilience › shows cached club data and an offline banner without a network connection (1.4s)
+  ✓  4 [chromium] › ../e2e/public/tests/smoke.spec.ts:9:7 › public smoke: search → club → match → share › finds a club via search, opens its agenda, opens a match, and can share it (1.5s)
+
+  4 passed (2.1s)
