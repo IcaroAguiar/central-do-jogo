@@ -928,8 +928,12 @@ components:
       required: [sourceId, nextRunAt, consecutiveFailures, updatedAt, lastError]
       properties:
         sourceId: { type: string }
-        lastSuccessAt: { type: string, format: date-time, nullable: true }
-        lastErrorAt: { type: string, format: date-time, nullable: true }
+        lastSuccessAt:
+          type: [string, "null"]
+          format: date-time
+        lastErrorAt:
+          type: [string, "null"]
+          format: date-time
         lastError: { type: string }
         nextRunAt: { type: string, format: date-time }
         consecutiveFailures: { type: integer }
@@ -950,7 +954,9 @@ components:
         round: { type: string }
         homeClub: { type: string }
         awayClub: { type: string }
-        kickoffAt: { type: string, format: date-time, nullable: true }
+        kickoffAt:
+          type: [string, "null"]
+          format: date-time
         broadcastState: { type: string }
         lineupState: { type: string }
         newsState: { type: string }
@@ -1018,8 +1024,7 @@ components:
       required: [favoriteClubSlugs]
       properties:
         primaryClubSlug:
-          type: string
-          nullable: true
+          type: [string, "null"]
         favoriteClubSlugs:
           type: array
           items: { type: string }

@@ -107,12 +107,7 @@ func (h *Handlers) RecordEvent() http.Handler {
 			httpplatform.WriteError(w, http.StatusBadRequest, "invalid_body", "invalid analytics payload")
 			return
 		}
-		err := h.svc.RecordEvent(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName), AnalyticsInput{
-			AnonymousID:   body.AnonymousID,
-			EventType:     body.EventType,
-			ConsentToLink: body.ConsentToLink,
-			Properties:    body.Properties,
-		})
+		err := h.svc.RecordEvent(r.Context(), httpplatform.CookieValue(r, httpplatform.SessionCookieName), AnalyticsInput(body))
 		if writePrivacyError(w, r, err) {
 			return
 		}
