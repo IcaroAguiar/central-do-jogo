@@ -120,6 +120,8 @@ func writeReportError(w http.ResponseWriter, r *http.Request, err error) bool {
 		httpplatform.WriteError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 	case errors.Is(err, ErrForbidden):
 		httpplatform.WriteError(w, http.StatusForbidden, "forbidden", "maintainer access required")
+	case errors.Is(err, ErrNotFound):
+		httpplatform.WriteError(w, http.StatusNotFound, "not_found", "report not found")
 	case errors.Is(err, ErrInvalidInput):
 		httpplatform.WriteError(w, http.StatusBadRequest, "invalid_input", "invalid report request")
 	default:

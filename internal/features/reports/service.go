@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -15,9 +14,10 @@ import (
 )
 
 var (
-	ErrAuthDisabled = errors.New("auth disabled")
-	ErrUnauthorized = errors.New("unauthorized")
-	ErrForbidden    = errors.New("forbidden")
+	ErrAuthDisabled = domain.ErrAuthDisabled
+	ErrUnauthorized = domain.ErrUnauthorized
+	ErrForbidden    = domain.ErrForbidden
+	ErrNotFound     = domain.ErrNotFound
 	ErrInvalidInput = errors.New("invalid input")
 )
 
@@ -27,13 +27,6 @@ const (
 	StatusReviewed  = "reviewed"
 	StatusDismissed = "dismissed"
 )
-
-// SessionResolver looks up the current user from an opaque session token.
-type SessionResolver interface {
-	Enabled() bool
-	CurrentUser(ctx context.Context, sessionToken string) (*domain.User, error)
-	PublicBaseURL() string
-}
 
 // ReportRepository persists reports.
 type ReportRepository interface {
@@ -53,21 +46,21 @@ type CreateInput struct {
 
 // Service orchestrates report intake and maintainer queue reads.
 type Service struct {
-	sessions SessionResolver
-	reports  ReportRepository
-	now      func() time.Time
+	gate    domain.MaintainerGate
+	reports ReportRepository
+	now     func() time.Time
 }
 
 // NewService builds a reports service.
-func NewService(sessions SessionResolver, reports ReportRepository, now func() time.Time) *Service {
+func NewService(gate domain.MaintainerGate, reports ReportRepository, now func() time.Time) *Service {
 	if now == nil {
 		now = time.Now
 	}
-	return &Service{sessions: sessions, reports: reports, now: now}
+	return &Service{gate: gate, reports: reports, now: now}
 }
 
 // PublicBaseURL exposes the configured origin for CSRF checks on maintainer mutations.
-func (s *Service) PublicBaseURL() string { return s.sessions.PublicBaseURL() }
+func (s *Service) PublicBaseURL() string { return s.gate.PublicBaseURL() }
 
 // Create stores a sanitized anonymous report. It never mutates match/club data.
 func (s *Service) Create(ctx context.Context, input CreateInput) error {
@@ -98,7 +91,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) error {
 
 // ListOpen returns the maintainer report queue.
 func (s *Service) ListOpen(ctx context.Context, sessionToken string) ([]domain.Report, error) {
-	if _, err := s.requireMaintainer(ctx, sessionToken); err != nil {
+	if _, err := s.gate.RequireMaintainer(ctx, sessionToken); err != nil {
 		return nil, err
 	}
 	return s.reports.ListOpen(ctx, 50)
@@ -106,7 +99,7 @@ func (s *Service) ListOpen(ctx context.Context, sessionToken string) ([]domain.R
 
 // Review marks a report reviewed/dismissed without changing product data.
 func (s *Service) Review(ctx context.Context, sessionToken, reportID, status string) error {
-	if _, err := s.requireMaintainer(ctx, sessionToken); err != nil {
+	if _, err := s.gate.RequireMaintainer(ctx, sessionToken); err != nil {
 		return err
 	}
 	status = strings.TrimSpace(status)
@@ -117,24 +110,10 @@ func (s *Service) Review(ctx context.Context, sessionToken, reportID, status str
 	if id == "" {
 		return ErrInvalidInput
 	}
-	return s.reports.MarkReviewed(ctx, id, status, s.now())
-}
-
-func (s *Service) requireMaintainer(ctx context.Context, sessionToken string) (*domain.User, error) {
-	if !s.sessions.Enabled() {
-		return nil, ErrAuthDisabled
+	if err := s.reports.MarkReviewed(ctx, id, status, s.now()); err != nil {
+		return err
 	}
-	user, err := s.sessions.CurrentUser(ctx, sessionToken)
-	if err != nil {
-		return nil, fmt.Errorf("resolve session: %w", err)
-	}
-	if user == nil {
-		return nil, ErrUnauthorized
-	}
-	if user.Role != domain.RoleMaintainer {
-		return nil, ErrForbidden
-	}
-	return user, nil
+	return nil
 }
 
 func hashIP(ip string) string {

@@ -30,6 +30,40 @@ async function loadPanelData() {
   };
 }
 
+type AdminSurface = "broadcast" | "lineup" | "news";
+
+function isAtRiskState(state: string): boolean {
+  return state === "divergent" || state === "not_found" || state === "awaiting_publication";
+}
+
+function atRiskSurface(match: AdminAtRiskMatch): AdminSurface {
+  if (isAtRiskState(match.broadcastState)) {
+    return "broadcast";
+  }
+  if (isAtRiskState(match.lineupState)) {
+    return "lineup";
+  }
+  if (isAtRiskState(match.newsState)) {
+    return "news";
+  }
+  return "broadcast";
+}
+
+function surfaceLabel(surface: AdminSurface): string {
+  switch (surface) {
+    case "broadcast":
+      return "TV";
+    case "lineup":
+      return "escalação";
+    case "news":
+      return "notícia";
+    default: {
+      const _exhaustive: never = surface;
+      return _exhaustive;
+    }
+  }
+}
+
 /** Maintainer panel: source health, at-risk matches, audit (TASK-031). */
 export function AdminPage() {
   const [me, setMe] = useState<AuthMeResponse | null>(null);
@@ -77,17 +111,21 @@ export function AdminPage() {
     };
   }, []);
 
-  async function onAction(slug: string, action: "confirm" | "correct" | "mark_divergent") {
+  async function onAction(
+    match: AdminAtRiskMatch,
+    action: "confirm" | "correct" | "mark_divergent",
+  ) {
     const reason = window.prompt("Motivo da ação (obrigatório):");
     if (!reason?.trim()) {
       return;
     }
-    setBusySlug(slug);
+    const surface = atRiskSurface(match);
+    setBusySlug(match.slug);
     setError(null);
     try {
-      await postAdminMatchAction(slug, {
+      await postAdminMatchAction(match.slug, {
         action,
-        surface: "broadcast",
+        surface,
         reason: reason.trim(),
         value: action === "correct" ? "available" : undefined,
       });
@@ -155,21 +193,21 @@ export function AdminPage() {
                 <button
                   type="button"
                   disabled={busySlug === m.slug}
-                  onClick={() => void onAction(m.slug, "confirm")}
+                  onClick={() => void onAction(m, "confirm")}
                 >
-                  Confirmar TV
+                  Confirmar {surfaceLabel(atRiskSurface(m))}
                 </button>
                 <button
                   type="button"
                   disabled={busySlug === m.slug}
-                  onClick={() => void onAction(m.slug, "correct")}
+                  onClick={() => void onAction(m, "correct")}
                 >
                   Corrigir
                 </button>
                 <button
                   type="button"
                   disabled={busySlug === m.slug}
-                  onClick={() => void onAction(m.slug, "mark_divergent")}
+                  onClick={() => void onAction(m, "mark_divergent")}
                 >
                   Marcar divergente
                 </button>

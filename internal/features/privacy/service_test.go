@@ -3,6 +3,7 @@ package privacy_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,6 +15,7 @@ type memSessions struct {
 	enabled bool
 	user    *domain.User
 	baseURL string
+	secure  bool
 }
 
 func (m *memSessions) Enabled() bool { return m.enabled }
@@ -21,6 +23,7 @@ func (m *memSessions) CurrentUser(context.Context, string) (*domain.User, error)
 	return m.user, nil
 }
 func (m *memSessions) PublicBaseURL() string { return m.baseURL }
+func (m *memSessions) CookieSecure() bool    { return m.secure }
 
 type memUsers struct {
 	byID    map[domain.ID]*domain.User
@@ -192,5 +195,43 @@ func TestPurgeExpired(t *testing.T) {
 	}
 	if len(analytics.events) != 1 || analytics.events[0].ID != "new" {
 		t.Fatalf("events = %+v", analytics.events)
+	}
+}
+
+func TestRecordEventRejectsOversizedProperties(t *testing.T) {
+	t.Parallel()
+	svc := privacy.NewService(
+		&memSessions{enabled: false},
+		&memUsers{},
+		&memPrefs{},
+		&memAnalytics{},
+		90,
+		time.Now,
+	)
+	props := map[string]any{}
+	for i := 0; i < 21; i++ {
+		props[fmt.Sprintf("k%d", i)] = "x"
+	}
+	err := svc.RecordEvent(context.Background(), "", privacy.AnalyticsInput{
+		AnonymousID: "anon-12345678", EventType: "view", Properties: props,
+	})
+	if err != privacy.ErrInvalidEvent {
+		t.Fatalf("err = %v, want ErrInvalidEvent", err)
+	}
+
+	deep := map[string]any{"a": map[string]any{"b": map[string]any{"c": map[string]any{"d": "too deep"}}}}
+	err = svc.RecordEvent(context.Background(), "", privacy.AnalyticsInput{
+		AnonymousID: "anon-12345678", EventType: "view", Properties: deep,
+	})
+	if err != privacy.ErrInvalidEvent {
+		t.Fatalf("depth err = %v, want ErrInvalidEvent", err)
+	}
+}
+
+func TestCookieSecureDelegatesToSessions(t *testing.T) {
+	t.Parallel()
+	svc := privacy.NewService(&memSessions{secure: true}, &memUsers{}, &memPrefs{}, &memAnalytics{}, 90, time.Now)
+	if !svc.CookieSecure() {
+		t.Fatal("expected CookieSecure true")
 	}
 }

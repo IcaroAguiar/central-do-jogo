@@ -33,7 +33,9 @@ type PushConfig struct {
 
 // PrivacyConfig groups first-party analytics retention (TASK-030).
 type PrivacyConfig struct {
-	AnalyticsRetentionDays int
+	AnalyticsRetentionDays   int
+	EventsRateLimitPerSecond float64
+	EventsRateLimitBurst     int
 }
 
 // AdminConfig groups maintainer panel limits (TASK-031).
@@ -248,6 +250,24 @@ func loadPrivacy(cfg *Config) error {
 		return fmt.Errorf("ANALYTICS_RETENTION_DAYS must be positive, got %d", days)
 	}
 	cfg.Privacy.AnalyticsRetentionDays = days
+
+	rate, err := envFloat("PRIVACY_EVENTS_RATE_LIMIT_PER_SECOND", 0.5)
+	if err != nil {
+		return err
+	}
+	if rate <= 0 {
+		return fmt.Errorf("PRIVACY_EVENTS_RATE_LIMIT_PER_SECOND must be positive, got %v", rate)
+	}
+	cfg.Privacy.EventsRateLimitPerSecond = rate
+
+	burst, err := envInt("PRIVACY_EVENTS_RATE_LIMIT_BURST", 3)
+	if err != nil {
+		return err
+	}
+	if burst <= 0 {
+		return fmt.Errorf("PRIVACY_EVENTS_RATE_LIMIT_BURST must be positive, got %d", burst)
+	}
+	cfg.Privacy.EventsRateLimitBurst = burst
 	return nil
 }
 

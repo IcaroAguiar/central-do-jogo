@@ -36,10 +36,10 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	prefsStore := store.NewPreferencesStore(pool)
 	pushStore := store.NewPushStore(pool)
 	analyticsStore := store.NewAnalyticsStore(pool)
-	overrideStore := store.NewOverrideStore(pool)
 	auditStore := store.NewAuditStore(pool)
 	reportStore := store.NewReportStore(pool)
 	healthStore := jobs.NewHealthStore(pool)
+	matchActionStore := store.NewMatchActionStore(pool)
 
 	searchSvc := search.NewService(clubStore, matchStore)
 	clubsSvc := clubs.NewService(clubStore, matchStore, time.Now)
@@ -48,7 +48,7 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	prefsSvc := preferences.NewService(authSvc, prefsStore, clubStore, time.Now)
 	pushSvc := push.NewService(authSvc, pushStore, cfg.Push.Enabled, cfg.Push.VAPIDPublicKey, time.Now)
 	privacySvc := privacy.NewService(authSvc, userStore, prefsStore, analyticsStore, cfg.Privacy.AnalyticsRetentionDays, time.Now)
-	adminSvc := admin.NewService(authSvc, healthStore, matchStore, overrideStore, auditStore, time.Now)
+	adminSvc := admin.NewService(authSvc, healthStore, matchStore, matchActionStore, auditStore, time.Now)
 	reportsSvc := reports.NewService(authSvc, reportStore, time.Now)
 
 	searchLimiter := ratelimit.New(cfg.SearchRateLimitPerSecond, cfg.SearchRateLimitBurst)
@@ -66,6 +66,10 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	reportsLimiter := ratelimit.New(cfg.Reports.RateLimitPerSecond, cfg.Reports.RateLimitBurst)
 	if err := reportsLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
 		return nil, fmt.Errorf("reports trusted proxies: %w", err)
+	}
+	privacyLimiter := ratelimit.New(cfg.Privacy.EventsRateLimitPerSecond, cfg.Privacy.EventsRateLimitBurst)
+	if err := privacyLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
+		return nil, fmt.Errorf("privacy trusted proxies: %w", err)
 	}
 
 	var ssr httpplatform.SSRHandlers
@@ -89,7 +93,7 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 			auth.Register(mux, authSvc, authLimiter)
 			preferences.Register(mux, prefsSvc)
 			push.Register(mux, pushSvc)
-			privacy.Register(mux, privacySvc)
+			privacy.Register(mux, privacySvc, privacyLimiter)
 			admin.Register(mux, adminSvc, adminLimiter)
 			reports.Register(mux, reportsSvc, reportsLimiter)
 		},

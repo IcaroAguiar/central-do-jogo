@@ -31,10 +31,10 @@ const (
 )
 
 // ErrAuthDisabled is returned when OAuth credentials are not configured.
-var ErrAuthDisabled = errors.New("auth disabled")
+var ErrAuthDisabled = domain.ErrAuthDisabled
 
 // ErrUnauthorized is returned when a session is required but missing.
-var ErrUnauthorized = errors.New("unauthorized")
+var ErrUnauthorized = domain.ErrUnauthorized
 
 // ErrInvalidState is returned when the OAuth state cookie/query mismatch.
 var ErrInvalidState = errors.New("invalid oauth state")
@@ -43,7 +43,7 @@ var ErrInvalidState = errors.New("invalid oauth state")
 var ErrEmailUnverified = errors.New("email not verified")
 
 // ErrForbidden is returned when the caller is authenticated but not allowed.
-var ErrForbidden = errors.New("forbidden")
+var ErrForbidden = domain.ErrForbidden
 
 // Identity is a verified account identity from an OAuth provider.
 type Identity struct {
@@ -252,6 +252,22 @@ func RequireMaintainer(user *domain.User) error {
 		return ErrForbidden
 	}
 	return nil
+}
+
+// RequireMaintainer resolves the session and enforces maintainer role (ADR 0002).
+// It implements domain.MaintainerGate for admin/reports wiring without imports.
+func (s *Service) RequireMaintainer(ctx context.Context, sessionToken string) (*domain.User, error) {
+	if !s.Enabled() {
+		return nil, ErrAuthDisabled
+	}
+	user, err := s.CurrentUser(ctx, sessionToken)
+	if err != nil {
+		return nil, fmt.Errorf("resolve session: %w", err)
+	}
+	if err := RequireMaintainer(user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }
 
 // PostLoginRedirect returns the safe relative path after OAuth success.

@@ -161,6 +161,7 @@ func (s *MatchStore) ListAtRisk(ctx context.Context, limit int) ([]domain.MatchR
 		   OR m.news_state = 'divergent'
 		   OR m.broadcast_state IN ('not_found', 'awaiting_publication')
 		   OR m.lineup_state IN ('not_found', 'awaiting_publication')
+		   OR m.news_state IN ('not_found', 'awaiting_publication')
 		ORDER BY m.kickoff_at ASC NULLS LAST, m.slug
 		LIMIT $1
 	`, limit)

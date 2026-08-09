@@ -21,33 +21,44 @@ func NewOverrideStore(pool *pgxpool.Pool) *OverrideStore {
 }
 
 // Save inserts a new override version for the match/data_type/field triple.
+// Version allocation runs inside a transaction with an advisory lock to avoid races.
 func (s *OverrideStore) Save(ctx context.Context, override domain.MatchOverride) (*domain.MatchOverride, error) {
-	if override.Justification == "" {
-		return nil, fmt.Errorf("override must have a justification")
-	}
-	if override.Actor == "" {
-		return nil, fmt.Errorf("override must have an actor")
-	}
-	var nextVersion int
-	err := s.pool.QueryRow(ctx, `
-		SELECT COALESCE(MAX(version), 0) + 1
-		FROM match_overrides
-		WHERE match_id = $1 AND data_type = $2 AND field = $3
-	`, override.MatchID.String(), override.DataType, override.Field).Scan(&nextVersion)
+	var saved domain.MatchOverride
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		if override.Justification == "" {
+			return fmt.Errorf("override must have a justification")
+		}
+		if override.Actor == "" {
+			return fmt.Errorf("override must have an actor")
+		}
+		if err := lockOverrideKey(ctx, tx, override.MatchID.String(), override.DataType, override.Field); err != nil {
+			return err
+		}
+		var nextVersion int
+		if err := tx.QueryRow(ctx, `
+			SELECT COALESCE(MAX(version), 0) + 1
+			FROM match_overrides
+			WHERE match_id = $1 AND data_type = $2 AND field = $3
+		`, override.MatchID.String(), override.DataType, override.Field).Scan(&nextVersion); err != nil {
+			return fmt.Errorf("next override version: %w", err)
+		}
+		override.Version = nextVersion
+		_, err := tx.Exec(ctx, `
+			INSERT INTO match_overrides (
+				id, match_id, data_type, field, value, justification, actor, version, applied_at
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		`, override.ID.String(), override.MatchID.String(), override.DataType, override.Field,
+			override.Value, override.Justification, override.Actor, override.Version, override.AppliedAt.UTC())
+		if err != nil {
+			return fmt.Errorf("save override: %w", err)
+		}
+		saved = override
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("next override version: %w", err)
+		return nil, err
 	}
-	override.Version = nextVersion
-	_, err = s.pool.Exec(ctx, `
-		INSERT INTO match_overrides (
-			id, match_id, data_type, field, value, justification, actor, version, applied_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-	`, override.ID.String(), override.MatchID.String(), override.DataType, override.Field,
-		override.Value, override.Justification, override.Actor, override.Version, override.AppliedAt.UTC())
-	if err != nil {
-		return nil, fmt.Errorf("save override: %w", err)
-	}
-	return &override, nil
+	return &saved, nil
 }
 
 // FindActive returns the latest override for the match/data_type/field, or nil.

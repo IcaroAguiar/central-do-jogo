@@ -88,6 +88,7 @@ func (h *Handlers) DeleteAccount() http.Handler {
 			Value:    "",
 			Path:     "/",
 			HttpOnly: true,
+			Secure:   h.svc.CookieSecure(),
 			SameSite: http.SameSiteLaxMode,
 			MaxAge:   -1,
 			Expires:  time.Unix(0, 0).UTC(),
@@ -96,10 +97,13 @@ func (h *Handlers) DeleteAccount() http.Handler {
 	})
 }
 
+const maxAnalyticsBodyBytes = 16 << 10
+
 // RecordEvent handles POST /api/v1/privacy/events.
 func (h *Handlers) RecordEvent() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
+		r.Body = http.MaxBytesReader(w, r.Body, maxAnalyticsBodyBytes)
 		var body analyticsCreateRequest
 		dec := json.NewDecoder(r.Body)
 		dec.DisallowUnknownFields()

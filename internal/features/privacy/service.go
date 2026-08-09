@@ -8,24 +8,32 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 )
 
 // ErrAuthDisabled is returned when OAuth is not configured on this instance.
-var ErrAuthDisabled = errors.New("auth disabled")
+var ErrAuthDisabled = domain.ErrAuthDisabled
 
 // ErrUnauthorized is returned when the request has no valid session.
-var ErrUnauthorized = errors.New("unauthorized")
+var ErrUnauthorized = domain.ErrUnauthorized
 
 // ErrInvalidEvent is returned when an analytics payload fails validation.
 var ErrInvalidEvent = errors.New("invalid analytics event")
+
+const (
+	maxEventPropertiesKeys   = 20
+	maxEventPropertyDepth    = 2
+	maxEventPropertyStrRunes = 256
+)
 
 // SessionResolver looks up the current user from an opaque session token.
 type SessionResolver interface {
 	Enabled() bool
 	CurrentUser(ctx context.Context, sessionToken string) (*domain.User, error)
 	PublicBaseURL() string
+	CookieSecure() bool
 }
 
 // UserRepository loads and deletes account rows.
@@ -130,6 +138,11 @@ func (s *Service) PublicBaseURL() string {
 	return s.sessions.PublicBaseURL()
 }
 
+// CookieSecure reports whether session cookies must set the Secure flag.
+func (s *Service) CookieSecure() bool {
+	return s.sessions.CookieSecure()
+}
+
 // ExportAccount builds a JSON-serializable account snapshot for the session.
 func (s *Service) ExportAccount(ctx context.Context, sessionToken string) (Export, error) {
 	user, err := s.requireUser(ctx, sessionToken)
@@ -211,6 +224,9 @@ func (s *Service) RecordEvent(ctx context.Context, sessionToken string, input An
 	if props == nil {
 		props = map[string]any{}
 	}
+	if err := validateEventProperties(props, 0); err != nil {
+		return ErrInvalidEvent
+	}
 
 	var userID *domain.ID
 	if input.ConsentToLink && sessionToken != "" && s.sessions.Enabled() {
@@ -236,6 +252,53 @@ func (s *Service) RecordEvent(ctx context.Context, sessionToken string, input An
 		Properties:  props,
 		CreatedAt:   s.now().UTC(),
 	})
+}
+
+func validateEventProperties(props map[string]any, depth int) error {
+	if len(props) > maxEventPropertiesKeys {
+		return ErrInvalidEvent
+	}
+	for key, value := range props {
+		if key == "" || utf8.RuneCountInString(key) > maxEventPropertyStrRunes {
+			return ErrInvalidEvent
+		}
+		if err := validateEventPropertyValue(value, depth); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateEventPropertyValue(value any, depth int) error {
+	switch v := value.(type) {
+	case nil, bool, float64, int, int64:
+		return nil
+	case string:
+		if utf8.RuneCountInString(v) > maxEventPropertyStrRunes {
+			return ErrInvalidEvent
+		}
+		return nil
+	case map[string]any:
+		if depth >= maxEventPropertyDepth {
+			return ErrInvalidEvent
+		}
+		return validateEventProperties(v, depth+1)
+	case []any:
+		if depth >= maxEventPropertyDepth {
+			return ErrInvalidEvent
+		}
+		if len(v) > maxEventPropertiesKeys {
+			return ErrInvalidEvent
+		}
+		for _, item := range v {
+			if err := validateEventPropertyValue(item, depth+1); err != nil {
+				return err
+			}
+		}
+		return nil
+	default:
+		return ErrInvalidEvent
+	}
 }
 
 // PurgeExpired deletes analytics rows older than the configured retention.

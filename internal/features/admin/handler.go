@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
-	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/logging"
 )
@@ -164,7 +163,7 @@ func writeAdminError(w http.ResponseWriter, r *http.Request, err error) bool {
 	return true
 }
 
-func toHealthItem(row jobs.SourceHealth) healthItem {
+func toHealthItem(row domain.SourceHealth) healthItem {
 	item := healthItem{
 		SourceID:            row.SourceID,
 		LastError:           row.LastError,

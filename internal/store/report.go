@@ -85,7 +85,7 @@ func (s *ReportStore) MarkReviewed(ctx context.Context, id domain.ID, status str
 		return fmt.Errorf("mark report reviewed: %w", err)
 	}
 	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("mark report reviewed: not found")
+		return domain.ErrNotFound
 	}
 	return nil
 }

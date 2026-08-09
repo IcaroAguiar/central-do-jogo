@@ -6,20 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// SourceHealth tracks operational health for a source adapter.
-type SourceHealth struct {
-	SourceID            string
-	LastSuccessAt       *time.Time
-	LastErrorAt         *time.Time
-	LastError           string
-	NextRunAt           time.Time
-	ConsecutiveFailures int
-	UpdatedAt           time.Time
-}
 
 // HealthStore provides source_health operations.
 type HealthStore struct {
@@ -67,7 +57,7 @@ func (h *HealthStore) RecordFailure(ctx context.Context, sourceID string, errMsg
 }
 
 // List returns all tracked source health rows ordered by source id.
-func (h *HealthStore) List(ctx context.Context) ([]SourceHealth, error) {
+func (h *HealthStore) List(ctx context.Context) ([]domain.SourceHealth, error) {
 	rows, err := h.pool.Query(ctx, `
 		SELECT source_id, last_success_at, last_error_at, last_error,
 		       next_run_at, consecutive_failures, updated_at
@@ -79,9 +69,9 @@ func (h *HealthStore) List(ctx context.Context) ([]SourceHealth, error) {
 	}
 	defer rows.Close()
 
-	var out []SourceHealth
+	var out []domain.SourceHealth
 	for rows.Next() {
-		var sh SourceHealth
+		var sh domain.SourceHealth
 		if err := rows.Scan(
 			&sh.SourceID, &sh.LastSuccessAt, &sh.LastErrorAt, &sh.LastError,
 			&sh.NextRunAt, &sh.ConsecutiveFailures, &sh.UpdatedAt,
@@ -97,8 +87,8 @@ func (h *HealthStore) List(ctx context.Context) ([]SourceHealth, error) {
 }
 
 // Get returns the current health state for a source, or nil if not tracked.
-func (h *HealthStore) Get(ctx context.Context, sourceID string) (*SourceHealth, error) {
-	var sh SourceHealth
+func (h *HealthStore) Get(ctx context.Context, sourceID string) (*domain.SourceHealth, error) {
+	var sh domain.SourceHealth
 	err := h.pool.QueryRow(ctx, `
 		SELECT source_id, last_success_at, last_error_at, last_error,
 		       next_run_at, consecutive_failures, updated_at

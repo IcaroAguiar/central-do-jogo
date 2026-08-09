@@ -7,7 +7,9 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/privacy"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
 	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
@@ -23,6 +25,17 @@ func main() {
 		os.Exit(1)
 	}
 }
+
+// privacySessions is a disabled SessionResolver used only so the worker can own
+// PurgeExpired via privacy.Service without wiring OAuth.
+type privacySessions struct{}
+
+func (privacySessions) Enabled() bool { return false }
+func (privacySessions) CurrentUser(context.Context, string) (*domain.User, error) {
+	return nil, nil
+}
+func (privacySessions) PublicBaseURL() string { return "" }
+func (privacySessions) CookieSecure() bool    { return true }
 
 func run() error {
 	cfg, err := config.Load()
@@ -57,6 +70,15 @@ func run() error {
 	}
 	pushRunner := push.NewOutboxRunner(pushStore, pushStore, deliverer, cfg.Push.Enabled, nil)
 
+	privacySvc := privacy.NewService(
+		privacySessions{},
+		nil,
+		nil,
+		analyticsStore,
+		cfg.Privacy.AnalyticsRetentionDays,
+		nil,
+	)
+
 	handlers := jobs.HandlerRegistry{
 		"ingest.openfootball_brazil":  noopHandler("openfootball_brazil"),
 		"ingest.cbf_match_center":     noopHandler("cbf_match_center"),
@@ -64,13 +86,18 @@ func run() error {
 		"ingest.gazetaesportiva":      noopHandler("gazetaesportiva"),
 		push.JobTypeDeliver:           push.DeliverHandler(pushRunner),
 		push.JobTypeCleanup:           push.CleanupHandler(pushRunner),
-		privacy.JobTypePurgeAnalytics: privacy.PurgeHandler(analyticsStore, cfg.Privacy.AnalyticsRetentionDays, nil),
+		privacy.JobTypePurgeAnalytics: privacy.PurgeHandler(privacySvc),
 	}
 
 	hostname, _ := os.Hostname()
 	owner := fmt.Sprintf("worker-%s-%d", hostname, os.Getpid())
 
-	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner)
+	worker := jobs.NewWorker(jobStore, healthStore, handlers, owner,
+		jobs.WithSchedule(func(ctx context.Context) error {
+			_, err := privacy.EnqueuePurgeJob(ctx, jobStore, time.Now().UTC())
+			return err
+		}, time.Hour),
+	)
 	logger.Info("worker started",
 		"owner", owner,
 		"handlers", len(handlers),
