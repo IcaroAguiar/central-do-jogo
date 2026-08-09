@@ -431,11 +431,80 @@ input[type="text"] {
   cursor: not-allowed;
 }
 
-.settings-danger {
-  border-color: #e8a0a0 !important;
-  color: #ffd5d5 !important;
+.settings-actions button.settings-danger {
+  border-color: #e8a0a0;
+  color: #ffd5d5;
 }
 
 .settings-error {
   color: #ffd5d5;
+}
+
+.admin-page h2 {
+  margin: 2rem 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.admin-list li {
+  border-top: 1px solid rgba(197, 215, 207, 0.25);
+  padding-top: 0.75rem;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.admin-actions button {
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--fg);
+}
+
+.report-form {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(197, 215, 207, 0.25);
+}
+
+.report-form label {
+  display: block;
+  margin: 0.75rem 0 0.35rem;
+}
+
+.report-form textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.6rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--muted);
+  background: rgba(0, 0, 0, 0.15);
+  color: var(--fg);
+}
+
+.report-form button {
+  margin-top: 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.25rem;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--fg);
 }

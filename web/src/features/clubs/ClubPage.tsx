@@ -9,6 +9,7 @@ import { SSR_PAGE } from "../../lib/pages";
 import { LoadErrorPage } from "../../pages/LoadErrorPage";
 import { NotFoundPage } from "../../pages/NotFoundPage";
 import { usePreferences } from "../preferences/usePreferences";
+import { ReportForm } from "../reports/ReportForm";
 import { ShareButton } from "../sharing/ShareButton";
 import { AgendaTabs } from "./AgendaTabs";
 
@@ -128,6 +129,8 @@ export function ClubPage() {
           )}
         </div>
       </section>
+
+      <ReportForm contextType="club" contextSlug={slug} />
     </article>
   );
 }

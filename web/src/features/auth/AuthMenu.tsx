@@ -58,6 +58,11 @@ export function AuthMenu() {
       <Link className="auth-link" to="/conta">
         Conta
       </Link>
+      {me.role === "maintainer" ? (
+        <Link className="auth-link" to="/admin">
+          Painel
+        </Link>
+      ) : null}
       <button type="button" className="auth-link" onClick={() => void logout()} disabled={busy}>
         Sair
       </button>

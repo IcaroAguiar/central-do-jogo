@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { AdminPage } from "../features/admin/AdminPage";
 import { ClubPage } from "../features/clubs/ClubPage";
 import { MatchPage } from "../features/matches/MatchPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
@@ -36,6 +37,7 @@ export function App() {
           <Route path="clubes/:slug" element={<ClubPage />} />
           <Route path="jogos/:slug" element={<MatchPage />} />
           <Route path="conta" element={<SettingsPage />} />
+          <Route path="admin" element={<AdminPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

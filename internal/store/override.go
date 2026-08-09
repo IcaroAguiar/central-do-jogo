@@ -1,0 +1,76 @@
+package store
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+// OverrideStore persists versioned match overrides.
+type OverrideStore struct {
+	pool *pgxpool.Pool
+}
+
+// NewOverrideStore creates an override store backed by the provided pool.
+func NewOverrideStore(pool *pgxpool.Pool) *OverrideStore {
+	return &OverrideStore{pool: pool}
+}
+
+// Save inserts a new override version for the match/data_type/field triple.
+func (s *OverrideStore) Save(ctx context.Context, override domain.MatchOverride) (*domain.MatchOverride, error) {
+	if override.Justification == "" {
+		return nil, fmt.Errorf("override must have a justification")
+	}
+	if override.Actor == "" {
+		return nil, fmt.Errorf("override must have an actor")
+	}
+	var nextVersion int
+	err := s.pool.QueryRow(ctx, `
+		SELECT COALESCE(MAX(version), 0) + 1
+		FROM match_overrides
+		WHERE match_id = $1 AND data_type = $2 AND field = $3
+	`, override.MatchID.String(), override.DataType, override.Field).Scan(&nextVersion)
+	if err != nil {
+		return nil, fmt.Errorf("next override version: %w", err)
+	}
+	override.Version = nextVersion
+	_, err = s.pool.Exec(ctx, `
+		INSERT INTO match_overrides (
+			id, match_id, data_type, field, value, justification, actor, version, applied_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+	`, override.ID.String(), override.MatchID.String(), override.DataType, override.Field,
+		override.Value, override.Justification, override.Actor, override.Version, override.AppliedAt.UTC())
+	if err != nil {
+		return nil, fmt.Errorf("save override: %w", err)
+	}
+	return &override, nil
+}
+
+// FindActive returns the latest override for the match/data_type/field, or nil.
+func (s *OverrideStore) FindActive(ctx context.Context, matchID domain.ID, dataType, field string) (*domain.MatchOverride, error) {
+	row := s.pool.QueryRow(ctx, `
+		SELECT id, match_id, data_type, field, value, justification, actor, version, applied_at
+		FROM match_overrides
+		WHERE match_id = $1 AND data_type = $2 AND field = $3
+		ORDER BY version DESC
+		LIMIT 1
+	`, matchID.String(), dataType, field)
+	var o domain.MatchOverride
+	var id, matchCol string
+	if err := row.Scan(
+		&id, &matchCol, &o.DataType, &o.Field, &o.Value, &o.Justification, &o.Actor, &o.Version, &o.AppliedAt,
+	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("find active override: %w", err)
+	}
+	o.ID = domain.ID(id)
+	o.MatchID = domain.ID(matchCol)
+	o.AppliedAt = utc(o.AppliedAt)
+	return &o, nil
+}

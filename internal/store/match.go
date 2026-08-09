@@ -148,3 +148,48 @@ func collectMatchRecords(rows pgx.Rows) ([]domain.MatchRecord, error) {
 	}
 	return records, nil
 }
+
+// ListAtRisk returns matches with divergent surfaces or stale attempt gaps.
+func (s *MatchStore) ListAtRisk(ctx context.Context, limit int) ([]domain.MatchRecord, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT `+matchSelectColumns+matchFromJoin+`
+		WHERE m.broadcast_state = 'divergent'
+		   OR m.lineup_state = 'divergent'
+		   OR m.news_state = 'divergent'
+		   OR m.broadcast_state IN ('not_found', 'awaiting_publication')
+		   OR m.lineup_state IN ('not_found', 'awaiting_publication')
+		ORDER BY m.kickoff_at ASC NULLS LAST, m.slug
+		LIMIT $1
+	`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list at-risk matches: %w", err)
+	}
+	defer rows.Close()
+	return collectMatchRecords(rows)
+}
+
+// UpdateSurfaceState sets broadcast/lineup/news availability for a match.
+func (s *MatchStore) UpdateSurfaceState(ctx context.Context, matchID domain.ID, surface string, state domain.AvailabilityState, now time.Time) error {
+	var query string
+	switch surface {
+	case "broadcast":
+		query = `UPDATE matches SET broadcast_state = $2, updated_at = $3 WHERE id = $1`
+	case "lineup":
+		query = `UPDATE matches SET lineup_state = $2, updated_at = $3 WHERE id = $1`
+	case "news":
+		query = `UPDATE matches SET news_state = $2, updated_at = $3 WHERE id = $1`
+	default:
+		return fmt.Errorf("unknown surface %q", surface)
+	}
+	tag, err := s.pool.Exec(ctx, query, matchID.String(), string(state), now.UTC())
+	if err != nil {
+		return fmt.Errorf("update surface state: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("update surface state: match not found")
+	}
+	return nil
+}

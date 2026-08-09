@@ -91,9 +91,7 @@ export function SettingsPage() {
   return (
     <section className="settings-page">
       <h1>Conta</h1>
-      <p className="lede">
-        Gerencie a exportação e a exclusão dos dados da sua conta ({label}).
-      </p>
+      <p className="lede">Gerencie a exportação e a exclusão dos dados da sua conta ({label}).</p>
       {error ? (
         <p className="settings-error" role="alert">
           {error}

@@ -7,13 +7,16 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/admin"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/auth"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/clubs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/matches"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/preferences"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/privacy"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/push"
+	"github.com/IcaroAguiar/central-do-jogo/internal/features/reports"
 	"github.com/IcaroAguiar/central-do-jogo/internal/features/search"
+	"github.com/IcaroAguiar/central-do-jogo/internal/jobs"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/config"
 	httpplatform "github.com/IcaroAguiar/central-do-jogo/internal/platform/http"
 	"github.com/IcaroAguiar/central-do-jogo/internal/platform/http/ratelimit"
@@ -33,6 +36,10 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	prefsStore := store.NewPreferencesStore(pool)
 	pushStore := store.NewPushStore(pool)
 	analyticsStore := store.NewAnalyticsStore(pool)
+	overrideStore := store.NewOverrideStore(pool)
+	auditStore := store.NewAuditStore(pool)
+	reportStore := store.NewReportStore(pool)
+	healthStore := jobs.NewHealthStore(pool)
 
 	searchSvc := search.NewService(clubStore, matchStore)
 	clubsSvc := clubs.NewService(clubStore, matchStore, time.Now)
@@ -41,6 +48,8 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	prefsSvc := preferences.NewService(authSvc, prefsStore, clubStore, time.Now)
 	pushSvc := push.NewService(authSvc, pushStore, cfg.Push.Enabled, cfg.Push.VAPIDPublicKey, time.Now)
 	privacySvc := privacy.NewService(authSvc, userStore, prefsStore, analyticsStore, cfg.Privacy.AnalyticsRetentionDays, time.Now)
+	adminSvc := admin.NewService(authSvc, healthStore, matchStore, overrideStore, auditStore, time.Now)
+	reportsSvc := reports.NewService(authSvc, reportStore, time.Now)
 
 	searchLimiter := ratelimit.New(cfg.SearchRateLimitPerSecond, cfg.SearchRateLimitBurst)
 	if err := searchLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
@@ -49,6 +58,14 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 	authLimiter := ratelimit.New(cfg.Auth.RateLimitPerSecond, cfg.Auth.RateLimitBurst)
 	if err := authLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
 		return nil, fmt.Errorf("auth trusted proxies: %w", err)
+	}
+	adminLimiter := ratelimit.New(cfg.Admin.RateLimitPerSecond, cfg.Admin.RateLimitBurst)
+	if err := adminLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
+		return nil, fmt.Errorf("admin trusted proxies: %w", err)
+	}
+	reportsLimiter := ratelimit.New(cfg.Reports.RateLimitPerSecond, cfg.Reports.RateLimitBurst)
+	if err := reportsLimiter.SetTrustedProxies(cfg.TrustedProxyCIDRs); err != nil {
+		return nil, fmt.Errorf("reports trusted proxies: %w", err)
 	}
 
 	var ssr httpplatform.SSRHandlers
@@ -73,6 +90,8 @@ func NewHTTPHandler(cfg config.Config, pool *pgxpool.Pool) (http.Handler, error)
 			preferences.Register(mux, prefsSvc)
 			push.Register(mux, pushSvc)
 			privacy.Register(mux, privacySvc)
+			admin.Register(mux, adminSvc, adminLimiter)
+			reports.Register(mux, reportsSvc, reportsLimiter)
 		},
 	}), nil
 }

@@ -9,6 +9,7 @@ import { readInitialData } from "../../lib/initialData";
 import { SSR_PAGE } from "../../lib/pages";
 import { LoadErrorPage } from "../../pages/LoadErrorPage";
 import { NotFoundPage } from "../../pages/NotFoundPage";
+import { ReportForm } from "../reports/ReportForm";
 import { ShareButton } from "../sharing/ShareButton";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 
@@ -176,6 +177,8 @@ export function MatchPage() {
           <GapNotice state={detail.newsState} lastAttemptAt={detail.newsLastAttemptAt} />
         )}
       </section>
+
+      <ReportForm contextType="match" contextSlug={slug} />
     </article>
   );
 }

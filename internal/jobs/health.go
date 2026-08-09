@@ -66,6 +66,36 @@ func (h *HealthStore) RecordFailure(ctx context.Context, sourceID string, errMsg
 	return nil
 }
 
+// List returns all tracked source health rows ordered by source id.
+func (h *HealthStore) List(ctx context.Context) ([]SourceHealth, error) {
+	rows, err := h.pool.Query(ctx, `
+		SELECT source_id, last_success_at, last_error_at, last_error,
+		       next_run_at, consecutive_failures, updated_at
+		FROM source_health
+		ORDER BY source_id
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("list source health: %w", err)
+	}
+	defer rows.Close()
+
+	var out []SourceHealth
+	for rows.Next() {
+		var sh SourceHealth
+		if err := rows.Scan(
+			&sh.SourceID, &sh.LastSuccessAt, &sh.LastErrorAt, &sh.LastError,
+			&sh.NextRunAt, &sh.ConsecutiveFailures, &sh.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan source health: %w", err)
+		}
+		out = append(out, sh)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("source health rows: %w", err)
+	}
+	return out, nil
+}
+
 // Get returns the current health state for a source, or nil if not tracked.
 func (h *HealthStore) Get(ctx context.Context, sourceID string) (*SourceHealth, error) {
 	var sh SourceHealth

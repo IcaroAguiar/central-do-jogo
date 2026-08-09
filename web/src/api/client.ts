@@ -9,6 +9,17 @@ export type PushSubscriptionListResponse = components["schemas"]["PushSubscripti
 export type PushSubscriptionSummary = components["schemas"]["PushSubscriptionSummary"];
 export type PrivacyExportResponse = components["schemas"]["PrivacyExportResponse"];
 export type PrivacyAnalyticsEventCreate = components["schemas"]["PrivacyAnalyticsEventCreate"];
+export type AdminSourceHealthResponse = components["schemas"]["AdminSourceHealthResponse"];
+export type AdminSourceHealthItem = components["schemas"]["AdminSourceHealthItem"];
+export type AdminAtRiskMatchesResponse = components["schemas"]["AdminAtRiskMatchesResponse"];
+export type AdminAtRiskMatch = components["schemas"]["AdminAtRiskMatch"];
+export type AdminAuditResponse = components["schemas"]["AdminAuditResponse"];
+export type AdminAuditEvent = components["schemas"]["AdminAuditEvent"];
+export type AdminMatchActionRequest = components["schemas"]["AdminMatchActionRequest"];
+export type ReportCreateRequest = components["schemas"]["ReportCreateRequest"];
+export type AdminReportsResponse = components["schemas"]["AdminReportsResponse"];
+export type AdminReportItem = components["schemas"]["AdminReportItem"];
+export type AdminReportReviewRequest = components["schemas"]["AdminReportReviewRequest"];
 export type ClubDetail = components["schemas"]["ClubDetail"];
 export type ClubMatchesResponse = components["schemas"]["ClubMatchesResponse"];
 export type ClubMatchSummary = components["schemas"]["ClubMatchSummary"];
@@ -237,5 +248,53 @@ export function deletePushSubscription(endpoint: string): Promise<void> {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint }),
+  });
+}
+
+export function fetchAdminSourceHealth(): Promise<AdminSourceHealthResponse> {
+  return authedJSON<AdminSourceHealthResponse>("/api/v1/admin/sources/health");
+}
+
+export function fetchAdminAtRiskMatches(): Promise<AdminAtRiskMatchesResponse> {
+  return authedJSON<AdminAtRiskMatchesResponse>("/api/v1/admin/matches/at-risk");
+}
+
+export function fetchAdminAudit(entityType = "", entityId = ""): Promise<AdminAuditResponse> {
+  const params = new URLSearchParams();
+  if (entityType) {
+    params.set("entityType", entityType);
+  }
+  if (entityId) {
+    params.set("entityId", entityId);
+  }
+  const qs = params.toString();
+  return authedJSON<AdminAuditResponse>(`/api/v1/admin/audit${qs ? `?${qs}` : ""}`);
+}
+
+export function postAdminMatchAction(slug: string, body: AdminMatchActionRequest): Promise<void> {
+  return authedJSON<void>(`/api/v1/admin/matches/${encodeURIComponent(slug)}/actions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function createReport(body: ReportCreateRequest): Promise<void> {
+  return authedJSON<void>("/api/v1/reports", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchAdminReports(): Promise<AdminReportsResponse> {
+  return authedJSON<AdminReportsResponse>("/api/v1/admin/reports");
+}
+
+export function reviewAdminReport(id: string, body: AdminReportReviewRequest): Promise<void> {
+  return authedJSON<void>(`/api/v1/admin/reports/${encodeURIComponent(id)}/review`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }

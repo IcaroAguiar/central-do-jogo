@@ -301,6 +301,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/sources/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List source health for maintainers (CON-006) */
+        get: operations["listAdminSourceHealth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/at-risk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List matches needing maintainer attention */
+        get: operations["listAdminAtRiskMatches"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List recent maintainer audit events (REQ-013) */
+        get: operations["listAdminAudit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/matches/{slug}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirm, correct, or mark divergence on a match surface (REQ-013) */
+        post: operations["postAdminMatchAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit an anonymous contextual error report (REQ-014)
+         * @description Rate-limited anonymous intake. Reports never mutate match or club data automatically (REQ-014).
+         */
+        post: operations["createReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List open anonymous reports for maintainers */
+        get: operations["listAdminReports"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/reports/{id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark a report reviewed or dismissed */
+        post: operations["reviewAdminReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -321,6 +443,80 @@ export interface components {
                 /** @description Human-readable error message. */
                 message: string;
             };
+        };
+        ReportCreateRequest: {
+            /** @enum {string} */
+            contextType: "match" | "club" | "other";
+            contextSlug?: string;
+            message: string;
+        };
+        AdminReportsResponse: {
+            reports: components["schemas"]["AdminReportItem"][];
+        };
+        AdminReportItem: {
+            id: string;
+            contextType: string;
+            contextSlug: string;
+            message: string;
+            status: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminReportReviewRequest: {
+            /** @enum {string} */
+            status: "reviewed" | "dismissed";
+        };
+        AdminSourceHealthResponse: {
+            sources: components["schemas"]["AdminSourceHealthItem"][];
+        };
+        AdminSourceHealthItem: {
+            sourceId: string;
+            /** Format: date-time */
+            lastSuccessAt?: string | null;
+            /** Format: date-time */
+            lastErrorAt?: string | null;
+            lastError: string;
+            /** Format: date-time */
+            nextRunAt: string;
+            consecutiveFailures: number;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AdminAtRiskMatchesResponse: {
+            matches: components["schemas"]["AdminAtRiskMatch"][];
+        };
+        AdminAtRiskMatch: {
+            slug: string;
+            round?: string;
+            homeClub: string;
+            awayClub: string;
+            /** Format: date-time */
+            kickoffAt?: string | null;
+            broadcastState: string;
+            lineupState: string;
+            newsState: string;
+        };
+        AdminAuditResponse: {
+            events: components["schemas"]["AdminAuditEvent"][];
+        };
+        AdminAuditEvent: {
+            /** Format: int64 */
+            id: number;
+            actor: string;
+            action: string;
+            entityType: string;
+            entityId: string;
+            reason: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminMatchActionRequest: {
+            /** @enum {string} */
+            action: "confirm" | "correct" | "mark_divergent";
+            /** @enum {string} */
+            surface: "broadcast" | "lineup" | "news";
+            reason: string;
+            value?: string;
         };
         PrivacyExportResponse: {
             /** Format: date-time */
@@ -564,6 +760,8 @@ export interface components {
     };
     responses: never;
     parameters: {
+        /** @description Match slug, e.g. flamengo-x-vasco. */
+        MatchSlug: string;
         /** @description Club slug, e.g. flamengo. */
         ClubSlug: string;
     };
@@ -1289,6 +1487,322 @@ export interface operations {
             };
             /** @description Invalid event payload */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAdminSourceHealth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Source health rows */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSourceHealthResponse"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a maintainer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Auth disabled */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAdminAtRiskMatches: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description At-risk matches */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAtRiskMatchesResponse"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a maintainer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAdminAudit: {
+        parameters: {
+            query?: {
+                entityType?: string;
+                entityId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Audit events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminAuditResponse"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a maintainer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    postAdminMatchAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Match slug, e.g. flamengo-x-vasco. */
+                slug: components["parameters"]["MatchSlug"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminMatchActionRequest"];
+            };
+        };
+        responses: {
+            /** @description Action applied and audited */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description CSRF or not a maintainer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Match not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted into maintainer queue */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid payload */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAdminReports: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Open reports */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminReportsResponse"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not a maintainer */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reviewAdminReport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminReportReviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Report status updated */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid status */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description CSRF or not a maintainer */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
