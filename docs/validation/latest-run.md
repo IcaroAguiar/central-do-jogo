@@ -1,37 +1,31 @@
 # Latest QA smoke receipt
 
-- **Date:** 2026-08-08
-- **Branch / commit:** `chore/qa-evidence-pipeline` (6369688)
-- **Agent:** local verification for the QA evidence bridge
-- **Stack:** Compose `db` on `127.0.0.1:5433`, `go run ./cmd/server` on `:8080`, Playwright Chromium
+- **Date:** 2026-08-09
+- **Branch / commit:** `cursor/phase4-structure-goal005-6a1d` (`2d970051704fc82e51205cac14910172a05fd3c3`)
+- **Agent:** GitHub Actions CI on PR #16
+- **Run:** https://github.com/IcaroAguiar/central-do-jogo/actions/runs/31295151575
+- **Stack:** CI Postgres service, seeded DB, built web + Go server, Playwright Chromium
 
 ## Commands
 
 | Gate | Command | Result |
 |------|---------|--------|
-| Go format | `test -z "$(gofmt -l ./cmd ./internal)"` | pass |
-| Go vet | `GOTOOLCHAIN=local go vet ./...` | pass |
-| Go tests | `GOTOOLCHAIN=local go test -race -count=1 ./...` (clean env, no `PUBLIC_BASE_URL`) | **pass** — 183 tests / 30 packages |
-| Web lint | `./node_modules/.bin/biome ci .` in `web/` | **pass** — 62 files |
-| Web typecheck | `cd web && pnpm typecheck` | pass |
-| Web unit | `cd web && pnpm test` | **pass** — 11 files / 36 tests |
-| Web build | `cd web && pnpm build` | pass |
-| OpenAPI | `npx @redocly/cli@1.34.5 lint api/openapi.yaml` | **pass** — valid, 5 existing warnings |
-| E2E public | seed + server + `cd web && pnpm e2e` | **pass** — 4/4 (smoke, offline, phase4 auth/me, phase4 vapid); re-run after option-button click harden also 4/4 |
+| Go format / vet / race / lint | CI `go` job (`go test -race -count=1 ./…` + golangci-lint v2.12.2) | **pass** |
+| Web lint / typecheck / unit / build | CI `web` job | **pass** — 14 files / 40 tests |
+| OpenAPI | CI `openapi` job (`@redocly/cli` lint) | **pass** (5 existing warnings) |
+| Docker image | CI `docker-build` job | **pass** |
+| E2E public | CI `e2e-public` job | **pass** — 4/4 |
 
 ## E2E detail
 
 ```
-✓ phase4-api › auth/me reports configuration without requiring a session
-✓ phase4-api › push vapid endpoint responds according to VAPID configuration
+✓ phase 4 API readiness › auth/me reports configuration without requiring a session
+✓ phase 4 API readiness › push vapid endpoint responds according to VAPID configuration
 ✓ offline resilience › shows cached club data and an offline banner…
 ✓ public smoke › search → club → match → share
-4 passed (11.3s)
+4 passed (4.4s)
 ```
 
-## Residuals
+## Residuals (dated 2026-08-09)
 
-- Auth / Push browser e2e still residual (TEST-011 / Push part of TEST-008) until TASK-035 or dedicated test credentials.
-- Postgres store integration tests still require a live DB locally; CI e2e brings its own Postgres service.
-- Beta denominators (TEST-015) remain Phase 5.
-- Local note: exporting `PUBLIC_BASE_URL` while running `go test` fails `TestLoadDefaults` (env pollution); CI Go job does not set that var.
+See [`phase-4-checklist.md`](./phase-4-checklist.md). Browser suites for admin, privacy journeys, full auth login, and Push-simulated e2e remain owned by **TASK-035** (Phase 5 / GOAL-006). Blocker for Google login e2e: stable test credentials not provisioned in CI.
