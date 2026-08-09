@@ -174,23 +174,5 @@ func (s *MatchStore) ListAtRisk(ctx context.Context, limit int) ([]domain.MatchR
 
 // UpdateSurfaceState sets broadcast/lineup/news availability for a match.
 func (s *MatchStore) UpdateSurfaceState(ctx context.Context, matchID domain.ID, surface string, state domain.AvailabilityState, now time.Time) error {
-	var query string
-	switch surface {
-	case "broadcast":
-		query = `UPDATE matches SET broadcast_state = $2, updated_at = $3 WHERE id = $1`
-	case "lineup":
-		query = `UPDATE matches SET lineup_state = $2, updated_at = $3 WHERE id = $1`
-	case "news":
-		query = `UPDATE matches SET news_state = $2, updated_at = $3 WHERE id = $1`
-	default:
-		return fmt.Errorf("unknown surface %q", surface)
-	}
-	tag, err := s.pool.Exec(ctx, query, matchID.String(), string(state), now.UTC())
-	if err != nil {
-		return fmt.Errorf("update surface state: %w", err)
-	}
-	if tag.RowsAffected() == 0 {
-		return fmt.Errorf("update surface state: match not found")
-	}
-	return nil
+	return updateSurfaceStateTx(ctx, s.pool, matchID, surface, state, now)
 }

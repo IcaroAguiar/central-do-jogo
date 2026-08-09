@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/IcaroAguiar/central-do-jogo/internal/domain"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -21,19 +20,11 @@ func NewAuditStore(pool *pgxpool.Pool) *AuditStore {
 
 // Append inserts an audit event and returns it with generated id/timestamp.
 func (s *AuditStore) Append(ctx context.Context, event domain.AuditEvent) (*domain.AuditEvent, error) {
-	var id int64
-	var createdAt time.Time
-	err := s.pool.QueryRow(ctx, `
-		INSERT INTO audit_events (actor, action, entity_type, entity_id, reason, before_json, after_json)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, created_at
-	`, event.Actor, event.Action, event.EntityType, event.EntityID, event.Reason, event.BeforeJSON, event.AfterJSON).Scan(&id, &createdAt)
+	saved, err := appendAuditTx(ctx, s.pool, event)
 	if err != nil {
-		return nil, fmt.Errorf("append audit event: %w", err)
+		return nil, err
 	}
-	event.ID = id
-	event.CreatedAt = utc(createdAt)
-	return &event, nil
+	return &saved, nil
 }
 
 // ListRecent returns recent audit events, optionally filtered by entity.

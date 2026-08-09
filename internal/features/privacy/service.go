@@ -104,7 +104,7 @@ type Service struct {
 	users     UserRepository
 	prefs     PreferencesRepository
 	analytics AnalyticsRepository
-	retention time.Duration
+	retention *Retention
 	now       func() time.Time
 }
 
@@ -120,15 +120,12 @@ func NewService(
 	if now == nil {
 		now = time.Now
 	}
-	if retentionDays <= 0 {
-		retentionDays = 90
-	}
 	return &Service{
 		sessions:  sessions,
 		users:     users,
 		prefs:     prefs,
 		analytics: analytics,
-		retention: time.Duration(retentionDays) * 24 * time.Hour,
+		retention: NewRetention(analytics, retentionDays, now),
 		now:       now,
 	}
 }
@@ -303,8 +300,7 @@ func validateEventPropertyValue(value any, depth int) error {
 
 // PurgeExpired deletes analytics rows older than the configured retention.
 func (s *Service) PurgeExpired(ctx context.Context) (int64, error) {
-	cutoff := s.now().UTC().Add(-s.retention)
-	return s.analytics.DeleteBefore(ctx, cutoff)
+	return s.retention.PurgeExpired(ctx)
 }
 
 func (s *Service) requireUser(ctx context.Context, sessionToken string) (*domain.User, error) {
