@@ -55,5 +55,5 @@ Status legend: `viable` | `conditional` | `rejected`
 ## References
 
 - `schedules.md`, `broadcasts.md`, `lineups.md`, `news.md`
-- Redacted evidence under `evidence/`
+- Redacted evidence lives as adapter fixtures under `internal/sources/<source>/fixtures/`; the Phase 0 probes are in git history only
 - Template: `source-evaluation-template.md`
