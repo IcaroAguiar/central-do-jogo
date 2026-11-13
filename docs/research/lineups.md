@@ -15,7 +15,7 @@ Focus: REQ-024 (≈95% correct within 5 minutes of **official observable** publi
 | robots | `/robots.txt` not machine-readable (HTML 404) |
 | Auth | none |
 | Formation / coach | not observed on sampled page |
-| Evidence | `evidence/lineups/cbf-fluminense-gremio-2025.redacted.json` |
+| Evidence | redacted CBF match-center capture (fixture in `internal/sources/cbf_match_center/fixtures/`) |
 | Decision | **conditional** (primary official for national matches) |
 
 Rationale: Best free official structured-enough HTML for Brazilian domestic lineups. Publication lag vs club social graphics is a known product risk.
@@ -26,7 +26,7 @@ Rationale: Best free official structured-enough HTML for Brazilian domestic line
 |-------|-------|
 | Examples | Inter x Flamengo, Coritiba x Cruzeiro, Grêmio x Flamengo “onde assistir / escalações” pages |
 | Format | HTML; often **probable** XIs (`Escalação provável`) or editorial named XIs |
-| Evidence | three files under `evidence/lineups/*ge-editorial*` |
+| Evidence | three redacted ge editorial captures (kept in git history only) |
 | Decision | **conditional** secondary |
 
 Rationale: Useful early signal, but not a substitute for official CBF publication when defining REQ-024 “official observable”.

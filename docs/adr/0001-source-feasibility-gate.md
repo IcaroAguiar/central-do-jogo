@@ -14,7 +14,7 @@ GOAL-001 requires proving that free, admissible sources can support the pre-matc
 - `docs/research/lineups.md`
 - `docs/research/news.md`
 - `docs/research/source-matrix.md`
-- redacted probes under `docs/research/evidence/`
+- redacted probes from the Phase 0 pass (removed from the tree; kept in git history before the cleanup commit)
 
 Constraints: CON-001 (no mandatory paid services), SEC-004 (source manifests), PAT-003 (fixtures/tests, no live CI), REQ-023 / REQ-024 beta gates.
 

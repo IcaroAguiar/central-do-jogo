@@ -27,13 +27,13 @@ Editorial “onde assistir” pages are **not exhaustive**. Observed and product
 | Field | Value |
 |-------|-------|
 | Owner | Grupo Globo (ge.globo) |
-| Example URLs | see `evidence/broadcasts/*.ge-editorial.redacted.json` |
+| Example URLs | three ge editorial captures from the Phase 0 pass (kept in git history only) |
 | Access | public HTTP |
 | robots | agenda/content paths generally allowed; `/servico` and `/dynamo` disallowed |
 | Format | HTML editorial (“onde assistir … escalações”) |
 | Fields observed | channel/platform names in prose (`Premiere`, `SporTV`, sometimes `Prime Video`) |
 | Missing vs REQ-007 | stable free-vs-pay flag, region, official deep link often absent; **lists frequently incomplete vs known rights map** |
-| Evidence | three redacted captures under `evidence/broadcasts/` |
+| Evidence | three redacted captures (kept in git history only) |
 | Decision | **conditional** (candidate signal only — never sole truth) |
 
 Rationale: Useful free per-match text signal, but structurally biased toward Globo platforms and unsuitable as the only broadcast authority. Must be merged with other editorials + maintainer confirmation; treat omissions of CazéTV / Prime Video / Record as expected failure mode.
@@ -51,12 +51,12 @@ Rationale: Useful free per-match text signal, but structurally biased toward Glo
 | Field | Value |
 |-------|-------|
 | Owner | Individual Serie A clubs (heterogeneous CMS) |
-| Example URLs | Atlético Mineiro matchday posts under `/…-hoje-tem-jogo…` — see `evidence/broadcasts/*.club-matchday.redacted.json` |
+| Example URLs | Atlético Mineiro matchday posts under `/…-hoje-tem-jogo…` — captured in the Phase 0 pass (kept in git history only) |
 | Access | public HTTP on many clubs; some sites return bot walls (e.g. Cloudflare/captcha on probed Corinthians/Vasco surfaces) |
 | Format | HTML news/matchday posts; sometimes PDF “guia da partida” (Botafogo, Bahia) without reliable free structured text in this pass |
 | Fields observed | Explicit `Transmissão:` label on Atlético posts with channel names (`SporTV`, `Premiere`/`Premiete`, `Prime Vídeo`); club streaming (e.g. Galotv) often listed separately as pré-jogo/narração |
 | Missing vs REQ-007 | Not universal across clubs; no stable free-vs-pay/region/deep-link; typos and club-centric wording; PDF guides not automatable without fragile PDF/OCR |
-| Evidence | three redacted Atlético captures under `evidence/broadcasts/` |
+| Evidence | three redacted Atlético captures (kept in git history only) |
 | Decision | **conditional** (high-value candidate class for multi-source union — never sole truth) |
 
 Rationale: Club pages were underweighted in the first pass. Where clubs publish matchday service posts, they can surface non-Globo holders (e.g. Prime Video) that Globo-family editorials omit. Coverage is **uneven** (calendars/jogo hubs for Flamengo, São Paulo, Internacional often lack channel text; Botafogo/Bahia lean on PDFs). Treat as per-club adapters after SEC-004, robots checks, and fixtures — not one generic scraper.

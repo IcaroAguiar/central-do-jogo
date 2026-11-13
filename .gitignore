@@ -41,3 +41,6 @@ web/test-results/
 web/playwright-report/
 e2e/public/playwright-report/
 e2e/public/test-results/
+
+# Agent-session and research captures (not product)
+/docs/research/evidence/

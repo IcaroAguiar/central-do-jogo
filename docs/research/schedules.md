@@ -18,7 +18,7 @@ Goal: compare public/free sources for Serie A, Copa do Brasil, Libertadores, and
 | Terms | site terms/privacy apply; no explicit automated-access license found in this pass |
 | Format | HTML news + downloadable PDF “tabela básica” |
 | Freshness | seasonal PDF + ongoing site updates; kickoff changes require re-check |
-| Evidence | `evidence/schedules/cbf-tabela-basica-2026.meta.json` |
+| Evidence | CBF basic table metadata (fixture in `internal/sources/cbf_official_site/fixtures/`) |
 | Decision | **conditional** |
 
 Rationale: Official for Brasileirão / Copa do Brasil context. Structured machine API not found. PDF + HTML are admissible with attribution, rate limits, and change detection. Parser fragility is the main risk.
@@ -33,7 +33,7 @@ Rationale: Official for Brasileirão / Copa do Brasil context. Structured machin
 | Format | Football.TXT (convertible to JSON) |
 | Auth | none |
 | Terms | project LICENSE on repo; community-maintained, not an official federation feed |
-| Evidence | `evidence/schedules/openfootball-brazil-2026-br1.excerpt.txt` |
+| Evidence | openfootball excerpt (fixture in `internal/sources/openfootball_brazil/fixtures/`) |
 | Decision | **conditional** (secondary / bootstrap only) |
 
 Rationale: Excellent structured fixture text for Serie A 2026, including kickoff local times. Not authoritative vs CBF; use for scaffolding/tests and cross-check, never as sole provenance for user-facing truth.

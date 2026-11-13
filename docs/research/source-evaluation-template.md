@@ -56,7 +56,7 @@ Use one copy of this template per candidate source. Fill every field before prop
 
 | Field | Value |
 |-------|-------|
-| Redacted fixture path under `docs/research/evidence/` | |
+| Redacted fixture path under `internal/sources/<source>/fixtures/` | |
 | Capture method | |
 | Capture timestamp (UTC) | |
 | What was redacted and why | |
@@ -75,6 +75,6 @@ Use one copy of this template per candidate source. Fill every field before prop
 
 - [ ] Terms/robots reviewed without inventing permission
 - [ ] No secrets, cookies, or private URLs recorded
-- [ ] Redacted evidence committed or linked under `docs/research/evidence/`
+- [ ] Redacted evidence committed as an adapter fixture under `internal/sources/<source>/fixtures/`
 - [ ] Decision is explicit and dated
 - [ ] Row ready for `docs/research/source-matrix.md`

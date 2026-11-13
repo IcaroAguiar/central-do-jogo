@@ -13,7 +13,7 @@ Scope: up to five related links per match, 72h window, attribution, no full-text
 | HTTP | 200, XML RSS |
 | robots | allows `/feed/` |
 | Auth | none |
-| Evidence | `evidence/news/gazetaesportiva-feed.meta.json` |
+| Evidence | feed metadata sample (kept in git history; fixture in `internal/sources/gazetaesportiva_rss/fixtures/`) |
 | Decision | **viable** for allowlist trial |
 
 Rationale: Structured RSS, public, robots-friendly. Items are general sports — match linking needs club/competition keyword filters and dedupe.
