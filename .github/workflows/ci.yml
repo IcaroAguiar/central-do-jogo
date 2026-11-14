@@ -2,19 +2,19 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled]
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event.action != 'labeled' }}
+  cancel-in-progress: true
 
 jobs:
   verify:
     if: >-
-      github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')) && (github.event.action != 'labeled' || github.event.label.name == 'run-ci')
+      github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci'))
     permissions:
       contents: read
     runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
@@ -47,7 +47,11 @@ jobs:
           import pathlib, sys
           module, temp = sys.argv[1], pathlib.Path(sys.argv[2])
           paths = (temp / 'changed-paths').read_text().splitlines()
-          changed = {module + '/' + str(pathlib.PurePosixPath(p).parent) for p in paths if p.endswith('.go')}
+          changed = {
+              module if pathlib.PurePosixPath(p).parent == pathlib.PurePosixPath('.')
+              else module + '/' + str(pathlib.PurePosixPath(p).parent)
+              for p in paths if p.endswith('.go')
+          }
           all_packages = any(p in {'go.mod', 'go.sum'} for p in paths)
           rows = [row.split() for row in (temp / 'go-packages').read_text().splitlines()]
           dependencies = {row[0]: set(row[1:]) for row in rows}
@@ -62,7 +66,7 @@ jobs:
               if package == module + '/db' or package.startswith(module + '/internal/store'):
                   continue
               if all_packages or changed.intersection([package, *deps]):
-                  packages.append(package)
+                  packages.append('./' if package == module else package)
           (temp / 'affected-go').write_text('\n'.join(packages))
           PYGO
           mapfile -t packages < "$RUNNER_TEMP/affected-go"
