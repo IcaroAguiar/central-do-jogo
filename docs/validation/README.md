@@ -28,16 +28,14 @@ captures stay under ignored paths (`docs/private/`, `*.private.md`) — see
 
 ## Minimum PR bar (from this bridge onward)
 
-On every PR and on `main`:
+Every PR runs one `verify` job: Go format/vet/lint, web lint/typecheck,
+affected Go/web unit tests, and OpenAPI lint, with a 300-second work budget.
+Fork PRs require `run-ci`.
 
-- Go format / vet / race tests / lint
-- Web lint / typecheck / unit / build
-- OpenAPI lint
-- Docker image build
-- **E2E public smoke** (Playwright against seeded Postgres + Go SSR)
-
-CI always uploads Playwright HTML report + `test-results` (traces/screenshots
-are retained on failure) as workflow artifacts.
+The `full-ci.yml` workflow runs with `run-full-ci`, manual dispatch, or push
+to `main`: race tests, PostgreSQL tests in `db` and `internal/store`, web and
+Docker builds, and public E2E smoke against seeded Postgres + Go SSR.
+Only the E2E tier uploads Playwright reports and failure traces/screenshots.
 
 Phase-specific extras (auth login, admin, beta denominators) are tracked in
 the checklists and TASK-033…036; they are not optional forever — they are
