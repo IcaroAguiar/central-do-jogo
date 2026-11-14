@@ -1,0 +1,187 @@
+name: Full CI
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name != 'run-full-ci' && 'other' || 'main' }}
+  cancel-in-progress: ${{ github.event.action != 'labeled' }}
+
+jobs:
+  go:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.action != 'labeled' || github.event.label.name == 'run-full-ci') && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    name: Go
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
+    services:
+      postgres:
+        image: postgres:17.10-alpine
+        env:
+          POSTGRES_USER: central
+          POSTGRES_PASSWORD: central_dev_only
+          POSTGRES_DB: central_do_jogo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Format check
+        run: test -z "$(gofmt -l ./cmd ./internal)"
+      - name: Vet
+        run: go vet ./...
+      - name: Test with race
+        run: go test -race -count=1 ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.12.2
+      - name: Database integration tests
+        env:
+          DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
+        run: go test -p 1 -race -count=1 ./db/... ./internal/store/...
+
+  web:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.action != 'labeled' || github.event.label.name == 'run-full-ci') && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    name: Web
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.1"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+
+  openapi:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.action != 'labeled' || github.event.label.name == 'run-full-ci') && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    name: OpenAPI
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.1"
+      - name: Validate OpenAPI document
+        run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
+
+  docker-build:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.action != 'labeled' || github.event.label.name == 'run-full-ci') && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    name: Docker image
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build runtime image
+        run: docker build -f deploy/Dockerfile .
+      - name: Validate Compose file
+        run: docker compose -f deploy/compose.yaml config
+
+  # On request and push to main. Needs Postgres + built stack.
+  # See docs/validation/ for the QA evidence contract and local steps.
+  e2e-public:
+    if: >-
+      github.event_name == 'workflow_dispatch' || github.event_name == 'push' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.action != 'labeled' || github.event.label.name == 'run-full-ci') && (github.event.pull_request.head.repo.full_name == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    name: E2E (public smoke)
+    runs-on: ${{ fromJSON(vars.ACTIONS_RUNNER_LABELS_CI || '["ubuntu-latest"]') }}
+    services:
+      postgres:
+        image: postgres:17.10-alpine
+        env:
+          POSTGRES_USER: central
+          POSTGRES_PASSWORD: central_dev_only
+          POSTGRES_DB: central_do_jogo
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
+      SSR_ENABLED: "true"
+      CI: "true"
+      PUBLIC_BASE_URL: http://127.0.0.1:8080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.18.1"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+      - name: Install web deps
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: Build web assets
+        working-directory: web
+        run: pnpm build
+      - name: Seed database
+        run: go run ./cmd/seed
+      - name: Start server
+        run: |
+          nohup go run ./cmd/server > server.log 2>&1 &
+          echo $! > server.pid
+      - name: Wait for server
+        run: npx --yes wait-on -t 180000 http://127.0.0.1:8080/healthz
+      - name: Install Playwright browsers
+        working-directory: web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run e2e
+        working-directory: web
+        run: pnpm e2e
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-public-playwright-${{ github.run_id }}
+          path: |
+            e2e/public/playwright-report
+            e2e/public/test-results
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Server logs
+        if: always()
+        run: cat server.log || true
+      - name: Stop server
+        if: always()
+        run: kill "$(cat server.pid)" || true
+
