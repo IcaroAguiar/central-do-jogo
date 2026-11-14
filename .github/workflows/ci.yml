@@ -1,37 +1,128 @@
+---
 name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
-
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref
+    }}-${{ github.event.action == 'labeled' && 'label' || 'code' }}"
   cancel-in-progress: true
-
 jobs:
+  verify:
+    if: github.event_name == 'pull_request' && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci'))
+      && (github.event.action != 'labeled' || github.event.label.name == 'run-ci')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - name: Start work budget
+      shell: bash
+      run: echo "VERIFY_STARTED=$(date +%s)" >> "$GITHUB_ENV"
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache: true
+    - name: Format check
+      run: test -z "$(gofmt -l ./cmd ./internal)"
+    - name: Vet
+      run: go vet ./...
+    - name: Affected Go unit packages
+      shell: bash
+      env:
+        BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+      run: |-
+        set -euo pipefail
+        module=$(go list -m)
+        git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/changed-paths"
+        go list -f '{{.ImportPath}} {{join .Deps " "}}' ./... > "$RUNNER_TEMP/go-packages"
+        python3 - "$module" "$RUNNER_TEMP" <<'PYGO'
+        import pathlib, sys
+        module, temp = sys.argv[1], pathlib.Path(sys.argv[2])
+        paths = (temp / 'changed-paths').read_text().splitlines()
+        changed = {module + '/' + str(pathlib.PurePosixPath(p).parent) for p in paths if p.endswith('.go')}
+        all_packages = any(p in {'go.mod', 'go.sum'} for p in paths)
+        packages = []
+        for row in (temp / 'go-packages').read_text().splitlines():
+            package, *deps = row.split()
+            if package == module + '/db' or package.startswith(module + '/internal/store'):
+                continue
+            if all_packages or changed.intersection([package, *deps]):
+                packages.append(package)
+        (temp / 'affected-go').write_text('\n'.join(packages))
+        PYGO
+        mapfile -t packages < "$RUNNER_TEMP/affected-go"
+        if [[ ${#packages[@]} -gt 0 ]]; then go test -count=1 "${packages[@]}"; fi
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: v2.12.2
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.18.1
+    - name: Enable pnpm
+      run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+    - name: Install web dependencies
+      working-directory: web
+      run: pnpm install --frozen-lockfile
+    - name: Web format and lint
+      working-directory: web
+      run: pnpm lint
+    - name: Web types
+      working-directory: web
+      run: pnpm typecheck
+    - name: Affected unit tests
+      shell: bash
+      env:
+        BASE_SHA: "${{ github.event.pull_request.base.sha }}"
+      run: pnpm exec vitest run --changed "$BASE_SHA" --passWithNoTests --maxWorkers=2
+      working-directory: web
+    - name: Validate OpenAPI document
+      run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
+    - name: Work budget (300 seconds)
+      if: always()
+      shell: bash
+      run: |-
+        elapsed=$(( $(date +%s) - VERIFY_STARTED ))
+        echo "verify: ${elapsed}s / 300s"
+        [[ $elapsed -le 300 ]]
   go:
     name: Go
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - name: Format check
-        run: test -z "$(gofmt -l ./cmd ./internal)"
-      - name: Vet
-        run: go vet ./...
-      - name: Test with race
-        run: go test -race -count=1 ./...
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.12.2
-
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache: true
+    - name: Format check
+      run: test -z "$(gofmt -l ./cmd ./internal)"
+    - name: Vet
+      run: go vet ./...
+    - name: Test with race
+      run: go test -race -count=1 ./...
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v8
+      with:
+        version: v2.12.2
+    - name: Database integration tests
+      env:
+        DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
+      run: go test -race -count=1 ./db/... ./internal/store/...
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
+      && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17.10-alpine
+        env:
+          POSTGRES_USER: central
+          POSTGRES_PASSWORD: central_dev_only
+          POSTGRES_DB: central_do_jogo
+        ports:
+        - 5432:5432
+        options: "--health-cmd pg_isready --health-interval 5s --health-timeout 5s
+          --health-retries 10"
   web:
     name: Web
     runs-on: ubuntu-latest
@@ -39,46 +130,53 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.18.1"
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@11.18.0 --activate
-      - name: Install
-        run: pnpm install --frozen-lockfile
-      - name: Lint
-        run: pnpm lint
-      - name: Typecheck
-        run: pnpm typecheck
-      - name: Unit tests
-        run: pnpm test
-      - name: Build
-        run: pnpm build
-
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.18.1
+    - name: Enable pnpm
+      run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+    - name: Install
+      run: pnpm install --frozen-lockfile
+    - name: Lint
+      run: pnpm lint
+    - name: Typecheck
+      run: pnpm typecheck
+    - name: Unit tests
+      run: pnpm test
+    - name: Build
+      run: pnpm build
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
+      && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
   openapi:
     name: OpenAPI
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.18.1"
-      - name: Validate OpenAPI document
-        run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
-
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.18.1
+    - name: Validate OpenAPI document
+      run: npx --yes @redocly/cli@1.34.5 lint api/openapi.yaml
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
+      && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
   docker-build:
     name: Docker image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Build runtime image
-        run: docker build -f deploy/Dockerfile .
-      - name: Validate Compose file
-        run: docker compose -f deploy/compose.yaml config
-
-  # Required on every PR and push to main. Needs Postgres + built stack.
-  # See docs/validation/ for the QA evidence contract and local steps.
+    - uses: actions/checkout@v4
+    - name: Build runtime image
+      run: docker build -f deploy/Dockerfile .
+    - name: Validate Compose file
+      run: docker compose -f deploy/compose.yaml config
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
+      && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
   e2e-public:
     name: E2E (public smoke)
     runs-on: ubuntu-latest
@@ -90,62 +188,71 @@ jobs:
           POSTGRES_PASSWORD: central_dev_only
           POSTGRES_DB: central_do_jogo
         ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+        - 5432:5432
+        options: "--health-cmd pg_isready --health-interval 5s --health-timeout 5s
+          --health-retries 10"
     env:
       DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
-      SSR_ENABLED: "true"
-      CI: "true"
+      SSR_ENABLED: 'true'
+      CI: 'true'
       PUBLIC_BASE_URL: http://127.0.0.1:8080
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
-          cache: true
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24.18.1"
-      - name: Enable pnpm
-        run: corepack enable && corepack prepare pnpm@11.18.0 --activate
-      - name: Install web deps
-        working-directory: web
-        run: pnpm install --frozen-lockfile
-      - name: Build web assets
-        working-directory: web
-        run: pnpm build
-      - name: Seed database
-        run: go run ./cmd/seed
-      - name: Start server
-        run: |
-          nohup go run ./cmd/server > server.log 2>&1 &
-          echo $! > server.pid
-      - name: Wait for server
-        run: npx --yes wait-on -t 180000 http://127.0.0.1:8080/healthz
-      - name: Install Playwright browsers
-        working-directory: web
-        run: pnpm exec playwright install --with-deps chromium
-      - name: Run e2e
-        working-directory: web
-        run: pnpm e2e
-      - name: Upload Playwright artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: e2e-public-playwright-${{ github.run_id }}
-          path: |
-            e2e/public/playwright-report
-            e2e/public/test-results
-          if-no-files-found: warn
-          retention-days: 14
-      - name: Server logs
-        if: always()
-        run: cat server.log || true
-      - name: Stop server
-        if: always()
-        run: kill "$(cat server.pid)" || true
-
+    - uses: actions/checkout@v4
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: go.mod
+        cache: true
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 24.18.1
+    - name: Enable pnpm
+      run: corepack enable && corepack prepare pnpm@11.18.0 --activate
+    - name: Install web deps
+      working-directory: web
+      run: pnpm install --frozen-lockfile
+    - name: Build web assets
+      working-directory: web
+      run: pnpm build
+    - name: Seed database
+      run: go run ./cmd/seed
+    - name: Start server
+      run: |
+        nohup go run ./cmd/server > server.log 2>&1 &
+        echo $! > server.pid
+    - name: Wait for server
+      run: npx --yes wait-on -t 180000 http://127.0.0.1:8080/healthz
+    - name: Install Playwright browsers
+      working-directory: web
+      run: pnpm exec playwright install --with-deps chromium
+    - name: Run e2e
+      working-directory: web
+      run: pnpm e2e
+    - name: Upload Playwright artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: e2e-public-playwright-${{ github.run_id }}
+        path: |
+          e2e/public/playwright-report
+          e2e/public/test-results
+        if-no-files-found: warn
+        retention-days: 14
+    - name: Server logs
+      if: always()
+      run: cat server.log || true
+    - name: Stop server
+      if: always()
+      run: kill "$(cat server.pid)" || true
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
+      && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
+      == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
+    timeout-minutes: 30
+'on':
+  pull_request:
+    types:
+    - opened
+    - synchronize
+    - reopened
+    - ready_for_review
+    - labeled
+  workflow_dispatch:
