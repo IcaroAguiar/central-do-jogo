@@ -34,16 +34,23 @@ jobs:
         set -euo pipefail
         module=$(go list -m)
         git diff --name-only "$BASE_SHA" HEAD > "$RUNNER_TEMP/changed-paths"
-        go list -f '{{.ImportPath}} {{join .Deps " "}}' ./... > "$RUNNER_TEMP/go-packages"
+        go list -f '{{.ImportPath}} {{join .Deps " "}} {{join .TestImports " "}} {{join .XTestImports " "}}' ./... > "$RUNNER_TEMP/go-packages"
         python3 - "$module" "$RUNNER_TEMP" <<'PYGO'
         import pathlib, sys
         module, temp = sys.argv[1], pathlib.Path(sys.argv[2])
         paths = (temp / 'changed-paths').read_text().splitlines()
         changed = {module + '/' + str(pathlib.PurePosixPath(p).parent) for p in paths if p.endswith('.go')}
         all_packages = any(p in {'go.mod', 'go.sum'} for p in paths)
+        rows = [row.split() for row in (temp / 'go-packages').read_text().splitlines()]
+        dependencies = {row[0]: set(row[1:]) for row in rows}
         packages = []
-        for row in (temp / 'go-packages').read_text().splitlines():
-            package, *deps = row.split()
+        for package, direct in dependencies.items():
+            deps = direct.copy()
+            pending = list(direct)
+            while pending:
+                extra = dependencies.get(pending.pop(), set()) - deps
+                deps.update(extra)
+                pending.extend(extra)
             if package == module + '/db' or package.startswith(module + '/internal/store'):
                 continue
             if all_packages or changed.intersection([package, *deps]):
@@ -51,7 +58,7 @@ jobs:
         (temp / 'affected-go').write_text('\n'.join(packages))
         PYGO
         mapfile -t packages < "$RUNNER_TEMP/affected-go"
-        if [[ ${#packages[@]} -gt 0 ]]; then go test -count=1 "${packages[@]}"; fi
+        if [[ ${#packages[@]} -gt 0 ]]; then go test -p 2 -count=1 "${packages[@]}"; fi
     - name: golangci-lint
       uses: golangci/golangci-lint-action@v8
       with:
@@ -107,7 +114,7 @@ jobs:
     - name: Database integration tests
       env:
         DATABASE_URL: postgres://central:central_dev_only@127.0.0.1:5432/central_do_jogo?sslmode=disable
-      run: go test -race -count=1 ./db/... ./internal/store/...
+      run: go test -p 1 -race -count=1 ./db/... ./internal/store/...
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request'
       && contains(github.event.pull_request.labels.*.name, 'run-full-ci') && (github.event.pull_request.head.repo.full_name
       == github.repository || contains(github.event.pull_request.labels.*.name, 'run-ci')))
