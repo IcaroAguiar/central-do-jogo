@@ -12,7 +12,7 @@ Central do Jogo is an open-source, low-cost pre-match PWA for Brazilian football
 - Phase 3 / GOAL-004 is **done**: public read journeys (search, club detail/agenda, match detail), SSR, PWA offline shell, and `cmd/seed` demo data (ingest adapters remain a no-op placeholder).
 - Phase 4 / GOAL-005 is **done on `main`** (PR #16): privacy/admin/reports, ADR 0002 package layout, evidence pack under `docs/validation/phase-4-evidence-pack.md`. Checklist residuals remain for TASK-035.
 - Next: Phase 5 / GOAL-006 (beta protocol, full Playwright, a11y/perf, backup/ops, release gate).
-- QA evidence contract lives in `docs/validation/`; public Playwright smoke is required CI on PR/`main` (TEST-008/TEST-010).
+- QA evidence contract lives in `docs/validation/`; public Playwright smoke runs on request with `run-full-ci` or `workflow_dispatch` (TEST-008/TEST-010); every PR runs the fast `verify` gate.
 - Broadcasts remain human-assisted for accuracy; Copa do Brasil / Libertadores / Sudamericana are deferred pending deeper source rows.
 - Keep contributor-useful product, research, and architecture documents public. Put personal drafts or non-redistributable evidence only in the ignored private-document paths described in `docs/README.md`.
 
