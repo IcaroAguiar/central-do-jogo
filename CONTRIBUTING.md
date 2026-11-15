@@ -59,4 +59,4 @@ Frontend lint/format uses Biome (`web/biome.json`). Apply fixes locally with `pn
 - Explain behavior covered by tests; list residual risk when checks are skipped.
 - Check import direction against ADR 0002 when adding features.
 - Wait for the single `verify` job (Go/web format, lint, types, affected unit tests and OpenAPI) to pass within its 300-second work budget.
-- Database tests (`db`, `internal/store`), race tests, builds and public E2E run with `run-full-ci`, manual dispatch, or push to `main`. Fork PRs also need `run-ci`; `verify` runs on the next push or reopen after labeling, not on the label event.
+- Database tests (`db`, `internal/store`), race tests, builds and public E2E run with `run-full-ci`, manual dispatch, or push to `main`. Fork PRs run `verify` on a GitHub-hosted runner without secrets; the `run-full-ci` layer on a fork PR also needs `run-ci`.
