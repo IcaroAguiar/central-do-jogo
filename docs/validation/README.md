@@ -30,8 +30,7 @@ captures stay under ignored paths (`docs/private/`, `*.private.md`) — see
 
 Every PR runs one `verify` job: Go format/vet/lint, web lint/typecheck,
 affected Go/web unit tests, and OpenAPI lint, with a 300-second work budget.
-Fork PRs require `run-ci`; `verify` runs on the next push or reopen after
-labeling, not on the label event.
+Fork PRs run `verify` too, on a GitHub-hosted runner without secrets.
 
 The `full-ci.yml` workflow runs with `run-full-ci`, manual dispatch, or push
 to `main`: race tests, PostgreSQL tests in `db` and `internal/store`, web and
